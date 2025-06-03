@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:table_calendar/table_calendar.dart';
 
 class PerfilExample extends StatefulWidget {
-  const PerfilExample({super.key});
+  final String? username; // Nuevo parámetro añadido
+
+  const PerfilExample({super.key, this.username}); // Constructor actualizado
 
   @override
   State<PerfilExample> createState() => _PerfilExampleState();
@@ -10,7 +12,7 @@ class PerfilExample extends StatefulWidget {
 
 class _PerfilExampleState extends State<PerfilExample> {
   // Controladores para los campos editables
-  final TextEditingController _nombreController = TextEditingController();
+  late TextEditingController _nombreController;
   final TextEditingController _descripcionController = TextEditingController();
   bool _editando = false;
 
@@ -22,9 +24,12 @@ class _PerfilExampleState extends State<PerfilExample> {
   @override
   void initState() {
     super.initState();
-    // Valores iniciales (podrían venir de una base de datos)
-    _nombreController.text = 'No name';
-    _descripcionController.text = 'No description';
+    // Inicializar el controlador con el username o un valor por defecto
+    _nombreController = TextEditingController(
+      text: widget.username ?? 'No name',
+    );
+    _descripcionController.text =
+        'Estudiante de Ingeniería de Software en la Unimet';
   }
 
   @override
@@ -63,7 +68,7 @@ class _PerfilExampleState extends State<PerfilExample> {
                     radius: 40,
                     backgroundColor: Colors.white,
                     child: Icon(
-                      Icons.person,
+                      Icons.person_2,
                       size: 40,
                       color: Color(0xFFFF9800),
                     ),

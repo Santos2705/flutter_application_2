@@ -6,7 +6,7 @@ import 'package:flutter_application_2/perfil_screen.dart';
 import 'package:flutter_application_2/login_page.dart';
 
 class HomeScreen extends StatefulWidget {
-  final String? username; // Para recibir el nombre de usuario
+  final String? username;
 
   const HomeScreen({super.key, this.username});
 
@@ -18,18 +18,30 @@ class _HomeScreenState extends State<HomeScreen> {
   int _currentIndex = 0;
   late bool _isLoggedIn;
   late String _username;
-
-  final List<Widget> _screens = [
-    const InicioExample(),
-    const NotacionesExample(),
-    const PerfilExample(),
-  ];
+  late List<Widget> _screens;
 
   @override
   void initState() {
     super.initState();
     _isLoggedIn = widget.username != null;
     _username = widget.username ?? '';
+    _initializeScreens();
+  }
+
+  void _initializeScreens() {
+    _screens = [
+      InicioExample(username: _isLoggedIn ? _username : null),
+      NotacionesExample(username: _isLoggedIn ? _username : null),
+      PerfilExample(username: _isLoggedIn ? _username : null),
+    ];
+  }
+
+  void _updateLoginStatus(bool isLoggedIn, {String? username}) {
+    setState(() {
+      _isLoggedIn = isLoggedIn;
+      _username = username ?? '';
+      _initializeScreens();
+    });
   }
 
   @override
@@ -37,7 +49,7 @@ class _HomeScreenState extends State<HomeScreen> {
     return Scaffold(
       backgroundColor: const Color.fromARGB(255, 236, 236, 236),
       appBar: AppBar(
-        title: _isLoggedIn 
+        title: _isLoggedIn
             ? Text("Bienvenido, $_username")
             : const Text("MetroStructure"),
         backgroundColor: AppColors.primary,
@@ -46,11 +58,15 @@ class _HomeScreenState extends State<HomeScreen> {
           if (!_isLoggedIn)
             IconButton(
               icon: const Icon(Icons.login),
-              onPressed: () {
-                Navigator.push(
+              onPressed: () async {
+                final result = await Navigator.push(
                   context,
                   MaterialPageRoute(builder: (context) => const LoginPage()),
                 );
+
+                if (result != null && result is Map) {
+                  _updateLoginStatus(true, username: result['username']);
+                }
               },
               tooltip: 'Iniciar sesión o registrarse',
               color: Colors.orange,
@@ -59,10 +75,7 @@ class _HomeScreenState extends State<HomeScreen> {
             IconButton(
               icon: const Icon(Icons.logout),
               onPressed: () {
-                setState(() {
-                  _isLoggedIn = false;
-                  _username = '';
-                });
+                _updateLoginStatus(false);
               },
               tooltip: 'Cerrar sesión',
             ),
@@ -72,20 +85,23 @@ class _HomeScreenState extends State<HomeScreen> {
       floatingActionButton: _isLoggedIn
           ? FloatingActionButton(
               onPressed: () {
-                // Acción del FAB para usuarios logueados
+                // Acción del FAB
               },
               child: const Icon(Icons.add),
             )
           : FloatingActionButton(
-              onPressed: () {
-                Navigator.push(
+              onPressed: () async {
+                final result = await Navigator.push(
                   context,
                   MaterialPageRoute(builder: (context) => const LoginPage()),
                 );
+
+                if (result != null && result is Map) {
+                  _updateLoginStatus(true, username: result['username']);
+                }
               },
               backgroundColor: Colors.orange,
               child: const Icon(Icons.login),
-              tooltip: 'Registrarse o iniciar sesión',
             ),
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _currentIndex,
