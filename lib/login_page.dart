@@ -27,8 +27,9 @@ class _LoginPageState extends State<LoginPage> {
     });
 
     try {
-      final user = await DatabaseHelper.instance
-          .getUser(_usernameController.text.trim());
+      final user = await DatabaseHelper.instance.getUser(
+        _usernameController.text.trim(),
+      );
 
       if (user == null || user['password'] != _passwordController.text) {
         throw Exception('Credenciales inválidas');
@@ -90,7 +91,7 @@ class _LoginPageState extends State<LoginPage> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Icon(
-                    Icons.train,
+                    Icons.calendar_month,
                     size: 80,
                     color: Colors.orange[700],
                   ),
@@ -108,12 +109,18 @@ class _LoginPageState extends State<LoginPage> {
                     controller: _usernameController,
                     decoration: InputDecoration(
                       labelText: 'Usuario',
-                      prefixIcon: const Icon(Icons.person, color: Colors.orange),
+                      prefixIcon: const Icon(
+                        Icons.person,
+                        color: Colors.orange,
+                      ),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(10),
                       ),
                       focusedBorder: OutlineInputBorder(
-                        borderSide: const BorderSide(color: Colors.orange, width: 2),
+                        borderSide: const BorderSide(
+                          color: Colors.orange,
+                          width: 2,
+                        ),
                         borderRadius: BorderRadius.circular(10),
                       ),
                     ),
@@ -146,7 +153,10 @@ class _LoginPageState extends State<LoginPage> {
                         borderRadius: BorderRadius.circular(10),
                       ),
                       focusedBorder: OutlineInputBorder(
-                        borderSide: const BorderSide(color: Colors.orange, width: 2),
+                        borderSide: const BorderSide(
+                          color: Colors.orange,
+                          width: 2,
+                        ),
                         borderRadius: BorderRadius.circular(10),
                       ),
                     ),
@@ -165,10 +175,7 @@ class _LoginPageState extends State<LoginPage> {
                       padding: const EdgeInsets.only(top: 16.0),
                       child: Text(
                         _errorMessage!,
-                        style: TextStyle(
-                          color: Colors.red[700],
-                          fontSize: 14,
-                        ),
+                        style: TextStyle(color: Colors.red[700], fontSize: 14),
                       ),
                     ),
                   const SizedBox(height: 24),
@@ -184,7 +191,9 @@ class _LoginPageState extends State<LoginPage> {
                         ),
                       ),
                       child: _isLoading
-                          ? const CircularProgressIndicator(color: Colors.white)
+                          ? const CircularProgressIndicator(
+                              color: Color(0xFFFFFFFF),
+                            )
                           : const Text(
                               'INICIAR SESIÓN',
                               style: TextStyle(
