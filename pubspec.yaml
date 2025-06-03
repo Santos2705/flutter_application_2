@@ -8,6 +8,9 @@ environment:
 
 dependencies:
   table_calendar: ^3.0.9
+  sqflite: ^2.3.0
+  path_provider: ^2.1.1
+  path: ^1.8.3
   flutter:
     sdk: flutter
 
