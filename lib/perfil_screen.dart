@@ -1,22 +1,24 @@
 import 'package:flutter/material.dart';
 import 'package:table_calendar/table_calendar.dart';
+import 'package:flutter_application_2/database_helper.dart';
 
 class PerfilExample extends StatefulWidget {
-  final String? username; // Nuevo parámetro añadido
+  final String? username;
 
-  const PerfilExample({super.key, this.username}); // Constructor actualizado
+  const PerfilExample({super.key, this.username});
 
   @override
   State<PerfilExample> createState() => _PerfilExampleState();
 }
 
 class _PerfilExampleState extends State<PerfilExample> {
-  // Controladores para los campos editables
   late TextEditingController _nombreController;
-  final TextEditingController _descripcionController = TextEditingController();
+  late TextEditingController _emailController;
+  late TextEditingController _descripcionController;
   bool _editando = false;
+  bool _isLoading = true;
+  Map<String, dynamic>? _userData;
 
-  // Variables para el calendario
   CalendarFormat _calendarFormat = CalendarFormat.month;
   DateTime _focusedDay = DateTime.now();
   DateTime? _selectedDay;
@@ -24,34 +26,122 @@ class _PerfilExampleState extends State<PerfilExample> {
   @override
   void initState() {
     super.initState();
-    // Inicializar el controlador con el username o un valor por defecto
-    _nombreController = TextEditingController(
-      text: widget.username ?? 'No name',
-    );
-    _descripcionController.text =
-        'Estudiante de Ingeniería de Software en la Unimet';
+    _nombreController = TextEditingController();
+    _emailController = TextEditingController();
+    _descripcionController = TextEditingController(text: 'Estudiante de Ingeniería de Software en la Unimet');
+    _loadUserData();
   }
 
-  @override
-  void dispose() {
-    _nombreController.dispose();
-    _descripcionController.dispose();
-    super.dispose();
+  Future<void> _loadUserData() async {
+    if (widget.username == null) {
+      setState(() {
+        _isLoading = false;
+        _nombreController.text = 'Invitado';
+      });
+      return;
+    }
+
+    setState(() => _isLoading = true);
+    
+    try {
+      final user = await DatabaseHelper.instance.getUser(widget.username!);
+      if (user != null) {
+        setState(() {
+          _userData = user;
+          _nombreController.text = user['username'];
+          _emailController.text = user['email'];
+        });
+      }
+    } catch (e) {
+      print('Error al cargar datos del usuario: $e');
+    } finally {
+      setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _updateUserData() async {
+    if (widget.username == null) return;
+
+    if (_nombreController.text.isEmpty || _emailController.text.isEmpty) {
+      _showSnackBar('Nombre y email son obligatorios');
+      return;
+    }
+
+    if (!_emailController.text.contains('@')) {
+      _showSnackBar('Ingrese un email válido');
+      return;
+    }
+
+    setState(() => _isLoading = true);
+
+    try {
+      final db = await DatabaseHelper.instance.database;
+      await db.update(
+        'users',
+        {
+          'username': _nombreController.text,
+          'email': _emailController.text,
+        },
+        where: 'username = ?',
+        whereArgs: [widget.username],
+      );
+
+      _showSnackBar('Datos actualizados correctamente');
+      _toggleEdicion();
+    } catch (e) {
+      _showSnackBar('Error al actualizar datos: ${e.toString()}');
+    } finally {
+      setState(() => _isLoading = false);
+    }
   }
 
   void _toggleEdicion() {
     setState(() {
       _editando = !_editando;
+      if (!_editando && widget.username != null) {
+        _updateUserData();
+      }
     });
+  }
+
+  void _showSnackBar(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Colors.orange,
+      ),
+    );
+  }
+
+  @override
+  void dispose() {
+    _nombreController.dispose();
+    _emailController.dispose();
+    _descripcionController.dispose();
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    if (_isLoading) {
+      return Scaffold(
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              CircularProgressIndicator(),
+              SizedBox(height: 20),
+              Text('Cargando perfil...'),
+            ],
+          ),
+        ),
+      );
+    }
+
     return Scaffold(
       body: SingleChildScrollView(
         child: Column(
           children: [
-            // Sección de perfil
             Container(
               padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
               decoration: BoxDecoration(
@@ -63,25 +153,22 @@ class _PerfilExampleState extends State<PerfilExample> {
               ),
               child: Column(
                 children: [
-                  // Foto de perfil
                   const CircleAvatar(
-                    radius: 40,
+                    radius: 50,
                     backgroundColor: Colors.white,
                     child: Icon(
-                      Icons.person_2,
-                      size: 40,
+                      Icons.person,
+                      size: 50,
                       color: Color(0xFFFF9800),
                     ),
                   ),
-                  const SizedBox(height: 12),
-
-                  // Campo de nombre editable
+                  const SizedBox(height: 16),
                   _editando
                       ? TextField(
                           controller: _nombreController,
                           textAlign: TextAlign.center,
                           style: const TextStyle(
-                            fontSize: 20,
+                            fontSize: 24,
                             fontWeight: FontWeight.bold,
                             color: Colors.white,
                           ),
@@ -92,24 +179,45 @@ class _PerfilExampleState extends State<PerfilExample> {
                           ),
                         )
                       : Text(
-                          _nombreController.text.isEmpty
-                              ? 'No name'
-                              : _nombreController.text,
+                          _nombreController.text,
                           style: const TextStyle(
-                            fontSize: 20,
+                            fontSize: 24,
                             fontWeight: FontWeight.bold,
                             color: Colors.white,
                           ),
                         ),
+                  if (widget.username != null) ...[
+                    const SizedBox(height: 8),
+                    _editando
+                        ? TextField(
+                            controller: _emailController,
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(
+                              fontSize: 16,
+                              color: Colors.white,
+                            ),
+                            keyboardType: TextInputType.emailAddress,
+                            decoration: const InputDecoration(
+                              border: InputBorder.none,
+                              hintText: 'Ingresa tu email',
+                              hintStyle: TextStyle(color: Colors.white70),
+                            ),
+                          )
+                        : Text(
+                            _emailController.text,
+                            style: const TextStyle(
+                              fontSize: 16,
+                              color: Colors.white,
+                            ),
+                          ),
+                  ],
                 ],
               ),
             ),
-
-            // Sección de descripción editable
             Padding(
               padding: const EdgeInsets.all(16),
               child: Card(
-                elevation: 2,
+                elevation: 4,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),
@@ -122,49 +230,80 @@ class _PerfilExampleState extends State<PerfilExample> {
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           const Text(
-                            'Sobre mí',
+                            'Información del Perfil',
                             style: TextStyle(
-                              fontSize: 16,
+                              fontSize: 18,
                               fontWeight: FontWeight.bold,
                               color: Color(0xFFFF9800),
                             ),
                           ),
-                          IconButton(
-                            icon: Icon(
-                              _editando ? Icons.check : Icons.edit,
-                              color: const Color(0xFFFF9800),
+                          if (widget.username != null) // CORRECCIÓN APLICADA AQUÍ
+                            IconButton(
+                              icon: Icon(
+                                _editando ? Icons.check : Icons.edit,
+                                color: const Color(0xFFFF9800),
+                              ),
+                              onPressed: _toggleEdicion,
                             ),
-                            onPressed: _toggleEdicion,
-                          ),
                         ],
+                      ),
+                      const SizedBox(height: 12),
+                      Text(
+                        'Sobre mí',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: Colors.grey[700],
+                        ),
                       ),
                       const SizedBox(height: 8),
                       _editando
                           ? TextField(
                               controller: _descripcionController,
                               maxLines: 3,
-                              decoration: const InputDecoration(
-                                border: OutlineInputBorder(),
-                                hintText: 'Escribe tu descripción',
+                              decoration: InputDecoration(
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                hintText: 'Describe algo sobre ti',
                               ),
                             )
                           : Text(
-                              _descripcionController.text.isEmpty
-                                  ? 'No description'
-                                  : _descripcionController.text,
+                              _descripcionController.text,
                               style: const TextStyle(fontSize: 14),
                             ),
+                      if (widget.username != null) ...[
+                        const SizedBox(height: 16),
+                        Text(
+                          'Detalles de la cuenta',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: Colors.grey[700],
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        ListTile(
+                          contentPadding: EdgeInsets.zero,
+                          leading: Icon(Icons.person, color: Colors.orange),
+                          title: Text('Nombre de usuario'),
+                          subtitle: Text(widget.username!),
+                        ),
+                        if (_userData != null)
+                          ListTile(
+                            contentPadding: EdgeInsets.zero,
+                            leading: Icon(Icons.email, color: Colors.orange),
+                            title: Text('Email registrado'),
+                            subtitle: Text(_userData!['email']),
+                          ),
+                      ],
                     ],
                   ),
                 ),
               ),
             ),
-
-            // Calendario
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               child: Card(
-                elevation: 2,
+                elevation: 4,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),
@@ -172,16 +311,24 @@ class _PerfilExampleState extends State<PerfilExample> {
                   padding: const EdgeInsets.all(12),
                   child: Column(
                     children: [
-                      TableCalendar(
-                        firstDay: DateTime.now().subtract(
-                          const Duration(days: 180),
+                      const Text(
+                        'Mi Calendario',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFFFF9800),
                         ),
-                        lastDay: DateTime.now().add(const Duration(days: 180)),
+                      ),
+                      const SizedBox(height: 8),
+                      TableCalendar(
+                        firstDay: DateTime.now().subtract(const Duration(days: 365)),
+                        lastDay: DateTime.now().add(const Duration(days: 365)),
                         focusedDay: _focusedDay,
                         calendarFormat: _calendarFormat,
                         headerStyle: HeaderStyle(
                           titleTextStyle: const TextStyle(
                             color: Color(0xFFFF9800),
+                            fontWeight: FontWeight.bold,
                           ),
                           formatButtonTextStyle: const TextStyle(
                             color: Colors.white,
@@ -201,7 +348,7 @@ class _PerfilExampleState extends State<PerfilExample> {
                         ),
                         calendarStyle: CalendarStyle(
                           todayDecoration: BoxDecoration(
-                            color: const Color(0xFFFF9800).withOpacity(0.3),
+                            color: const Color(0xFFFF9800).withOpacity(0.5),
                             shape: BoxShape.circle,
                           ),
                           selectedDecoration: const BoxDecoration(
@@ -209,8 +356,7 @@ class _PerfilExampleState extends State<PerfilExample> {
                             shape: BoxShape.circle,
                           ),
                         ),
-                        selectedDayPredicate: (day) =>
-                            isSameDay(_selectedDay, day),
+                        selectedDayPredicate: (day) => isSameDay(_selectedDay, day),
                         onDaySelected: (selectedDay, focusedDay) {
                           setState(() {
                             _selectedDay = selectedDay;
