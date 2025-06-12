@@ -50,6 +50,7 @@ class _PerfilExampleState extends State<PerfilExample> {
           _userData = user;
           _nombreController.text = user['username'];
           _emailController.text = user['email'];
+          _descripcionController.text = user['descripcion'] ?? 'Estudiante de Ingeniería de Software en la Unimet';
         });
       }
     } catch (e) {
@@ -81,6 +82,7 @@ class _PerfilExampleState extends State<PerfilExample> {
         {
           'username': _nombreController.text,
           'email': _emailController.text,
+          'descripcion': _descripcionController.text,
         },
         where: 'username = ?',
         whereArgs: [widget.username],

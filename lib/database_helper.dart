@@ -16,10 +16,11 @@ class DatabaseHelper {
   Future<Database> _initDB(String filePath) async {
     final dbPath = await getDatabasesPath();
     final path = join(dbPath, filePath);
+    print('Ruta de la base de datos: $path');
 
     return await openDatabase(
       path,
-      version: 2, // Incrementamos la versión
+      version: 3, // Incrementamos la versión para forzar migración
       onCreate: _createDB,
       onUpgrade: _upgradeDB,
     );
@@ -31,7 +32,8 @@ class DatabaseHelper {
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         username TEXT UNIQUE NOT NULL,
         email TEXT UNIQUE NOT NULL,
-        password TEXT NOT NULL
+        password TEXT NOT NULL,
+        descripcion TEXT
       )
     ''');
 
@@ -72,6 +74,13 @@ class DatabaseHelper {
   Future _upgradeDB(Database db, int oldVersion, int newVersion) async {
     if (oldVersion < 2) {
       await _createDataTables(db);
+    }
+    // Agregar columna 'descripcion' a la tabla users si no existe
+    try {
+      await db.execute("ALTER TABLE users ADD COLUMN descripcion TEXT");
+      print('Columna descripcion agregada a users');
+    } catch (e) {
+      print('La columna descripcion ya existe o error al agregarla: $e');
     }
   }
 
