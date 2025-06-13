@@ -16,11 +16,10 @@ class DatabaseHelper {
   Future<Database> _initDB(String filePath) async {
     final dbPath = await getDatabasesPath();
     final path = join(dbPath, filePath);
-    print('Ruta de la base de datos: $path');
 
     return await openDatabase(
       path,
-      version: 3, // Incrementamos la versión para forzar migración
+      version: 4, // Incrementamos la versión para la nueva estructura
       onCreate: _createDB,
       onUpgrade: _upgradeDB,
     );
@@ -38,11 +37,12 @@ class DatabaseHelper {
     ''');
 
     await db.execute('''
-      CREATE TABLE tareas (
+      CREATE TABLE trimestres (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         user_id INTEGER NOT NULL,
-        semana INTEGER NOT NULL,
-        descripcion TEXT NOT NULL,
+        nombre TEXT NOT NULL,
+        fecha_inicio TEXT,
+        fecha_fin TEXT,
         FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
       )
     ''');
@@ -50,9 +50,9 @@ class DatabaseHelper {
     await db.execute('''
       CREATE TABLE materias (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
-        user_id INTEGER NOT NULL,
+        trimestre_id INTEGER NOT NULL,
         nombre TEXT NOT NULL,
-        FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
+        FOREIGN KEY (trimestre_id) REFERENCES trimestres (id) ON DELETE CASCADE
       )
     ''');
 
@@ -66,28 +66,9 @@ class DatabaseHelper {
         FOREIGN KEY (materia_id) REFERENCES materias (id) ON DELETE CASCADE
       )
     ''');
-    
-    // Agregado para depuración
-    print('Todas las tablas creadas correctamente');
-  }
 
-  Future _upgradeDB(Database db, int oldVersion, int newVersion) async {
-    if (oldVersion < 2) {
-      await _createDataTables(db);
-    }
-    // Agregar columna 'descripcion' a la tabla users si no existe
-    try {
-      await db.execute("ALTER TABLE users ADD COLUMN descripcion TEXT");
-      print('Columna descripcion agregada a users');
-    } catch (e) {
-      print('La columna descripcion ya existe o error al agregarla: $e');
-    }
-  }
-
-  // Este método se mantiene aunque parece duplicado para compatibilidad
-  Future _createDataTables(Database db) async {
     await db.execute('''
-      CREATE TABLE IF NOT EXISTS tareas (
+      CREATE TABLE tareas (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         user_id INTEGER NOT NULL,
         semana INTEGER NOT NULL,
@@ -95,18 +76,103 @@ class DatabaseHelper {
         FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
       )
     ''');
+  }
+
+  Future _upgradeDB(Database db, int oldVersion, int newVersion) async {
+    if (oldVersion < 2) {
+      await _createTables(db);
+    }
+    if (oldVersion < 3) {
+      await db.execute("ALTER TABLE users ADD COLUMN descripcion TEXT");
+    }
+    if (oldVersion < 4) {
+      // Migración para agregar trimestres
+      await db.execute('''
+        CREATE TABLE trimestres (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          user_id INTEGER NOT NULL,
+          nombre TEXT NOT NULL,
+          fecha_inicio TEXT,
+          fecha_fin TEXT,
+          FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
+        )
+      ''');
+
+      // Migrar las materias existentes al nuevo sistema
+      await db.execute('''
+        ALTER TABLE materias RENAME TO materias_old
+      ''');
+
+      await db.execute('''
+        CREATE TABLE materias (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          trimestre_id INTEGER NOT NULL,
+          nombre TEXT NOT NULL,
+          FOREIGN KEY (trimestre_id) REFERENCES trimestres (id) ON DELETE CASCADE
+        )
+      ''');
+
+      // Crear un trimestre por defecto para las materias existentes
+      final userIds = await db.query('users', columns: ['id']);
+      for (var user in userIds) {
+        final trimestreId = await db.insert('trimestres', {
+          'user_id': user['id'],
+          'nombre': 'Trimestre Inicial',
+          'fecha_inicio': DateTime.now().toIso8601String(),
+          'fecha_fin': DateTime.now().add(Duration(days: 90)).toIso8601String(),
+        });
+
+        // Migrar las materias al nuevo trimestre
+        final materias = await db.query(
+          'materias_old',
+          where: 'user_id = ?',
+          whereArgs: [user['id']],
+        );
+        for (var materia in materias) {
+          await db.insert('materias', {
+            'trimestre_id': trimestreId,
+            'nombre': materia['nombre'],
+          });
+        }
+      }
+
+      await db.execute('DROP TABLE materias_old');
+    }
+  }
+
+  Future _createTables(Database db) async {
+    await db.execute('''
+      CREATE TABLE users (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        username TEXT UNIQUE NOT NULL,
+        email TEXT UNIQUE NOT NULL,
+        password TEXT NOT NULL,
+        descripcion TEXT
+      )
+    ''');
 
     await db.execute('''
-      CREATE TABLE IF NOT EXISTS materias (
+      CREATE TABLE trimestres (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         user_id INTEGER NOT NULL,
         nombre TEXT NOT NULL,
+        fecha_inicio TEXT,
+        fecha_fin TEXT,
         FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
       )
     ''');
 
     await db.execute('''
-      CREATE TABLE IF NOT EXISTS evaluaciones (
+      CREATE TABLE materias (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        trimestre_id INTEGER NOT NULL,
+        nombre TEXT NOT NULL,
+        FOREIGN KEY (trimestre_id) REFERENCES trimestres (id) ON DELETE CASCADE
+      )
+    ''');
+
+    await db.execute('''
+      CREATE TABLE evaluaciones (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         materia_id INTEGER NOT NULL,
         nombre TEXT NOT NULL,
@@ -115,136 +181,95 @@ class DatabaseHelper {
         FOREIGN KEY (materia_id) REFERENCES materias (id) ON DELETE CASCADE
       )
     ''');
-    
-    print('Tablas adicionales creadas en upgrade');
+
+    await db.execute('''
+      CREATE TABLE tareas (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER NOT NULL,
+        semana INTEGER NOT NULL,
+        descripcion TEXT NOT NULL,
+        FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
+      )
+    ''');
   }
 
-  // Métodos existentes para usuarios...
+  // Métodos para usuarios (mantener los existentes)
   Future<int> createUser(String username, String email, String password) async {
     final db = await instance.database;
-    try {
-      final id = await db.insert('users', {
-        'username': username,
-        'email': email,
-        'password': password,
-      });
-      print('Usuario creado con ID: $id');
-      return id;
-    } catch (e) {
-      print('Error al crear usuario: $e');
-      rethrow;
-    }
+    return await db.insert('users', {
+      'username': username,
+      'email': email,
+      'password': password,
+    });
   }
 
   Future<Map<String, dynamic>?> getUser(String username) async {
     final db = await instance.database;
-    try {
-      final result = await db.query(
-        'users',
-        where: 'username = ?',
-        whereArgs: [username],
-      );
-      print('Usuario obtenido: ${result.isNotEmpty ? result.first : null}');
-      return result.isNotEmpty ? result.first : null;
-    } catch (e) {
-      print('Error al obtener usuario: $e');
-      return null;
-    }
+    final result = await db.query(
+      'users',
+      where: 'username = ?',
+      whereArgs: [username],
+    );
+    return result.isNotEmpty ? result.first : null;
   }
 
-  // Métodos para tareas
-  Future<int> insertTarea(int userId, int semana, String descripcion) async {
+  // Métodos para trimestres
+  Future<int> insertTrimestre(
+    int userId,
+    String nombre, {
+    String? fechaInicio,
+    String? fechaFin,
+  }) async {
     final db = await database;
-    try {
-      final id = await db.insert('tareas', {
-        'user_id': userId,
-        'semana': semana,
-        'descripcion': descripcion,
-      });
-      print('Tarea creada con ID: $id');
-      return id;
-    } catch (e) {
-      print('Error al crear tarea: $e');
-      rethrow;
-    }
+    return await db.insert('trimestres', {
+      'user_id': userId,
+      'nombre': nombre,
+      'fecha_inicio': fechaInicio,
+      'fecha_fin': fechaFin,
+    });
   }
 
-  Future<List<Map<String, dynamic>>> getTareasPorSemana(
-    int userId, 
-    int semana,
+  Future<List<Map<String, dynamic>>> getTrimestres(int userId) async {
+    final db = await database;
+    return await db.query(
+      'trimestres',
+      where: 'user_id = ?',
+      whereArgs: [userId],
+      orderBy: 'fecha_inicio ASC',
+    );
+  }
+
+  Future<int> deleteTrimestre(int id) async {
+    final db = await database;
+    return await db.delete('trimestres', where: 'id = ?', whereArgs: [id]);
+  }
+
+  // Métodos para materias (actualizados para usar trimestres)
+  Future<List<Map<String, dynamic>>> getMateriasPorTrimestre(
+    int trimestreId,
   ) async {
     final db = await database;
-    try {
-      final tareas = await db.query(
-        'tareas',
-        where: 'user_id = ? AND semana = ?',
-        whereArgs: [userId, semana],
-      );
-      print('Tareas obtenidas: ${tareas.length}');
-      return tareas;
-    } catch (e) {
-      print('Error al obtener tareas: $e');
-      return [];
-    }
+    return await db.query(
+      'materias',
+      where: 'trimestre_id = ?',
+      whereArgs: [trimestreId],
+    );
   }
 
-  Future<int> deleteTarea(int id) async {
+  Future<int> insertMateria(int trimestreId, String nombre) async {
     final db = await database;
-    try {
-      final count = await db.delete('tareas', where: 'id = ?', whereArgs: [id]);
-      print('Tareas eliminadas: $count');
-      return count;
-    } catch (e) {
-      print('Error al eliminar tarea: $e');
-      return 0;
-    }
-  }
-
-  // Métodos para materias
-  Future<int> insertMateria(int userId, String nombre) async {
-    final db = await database;
-    try {
-      final id = await db.insert('materias', {
-        'user_id': userId,
-        'nombre': nombre,
-      });
-      print('Materia creada con ID: $id');
-      return id;
-    } catch (e) {
-      print('Error al crear materia: $e');
-      rethrow;
-    }
-  }
-
-  Future<List<Map<String, dynamic>>> getMaterias(int userId) async {
-    final db = await database;
-    try {
-      final materias = await db.query(
-        'materias',
-        where: 'user_id = ?',
-        whereArgs: [userId],
-      );
-      print('Materias obtenidas: ${materias.length}');
-      return materias;
-    } catch (e) {
-      print('Error al obtener materias: $e');
-      return [];
-    }
+    return await db.insert('materias', {
+      'trimestre_id': trimestreId,
+      'nombre': nombre,
+    });
   }
 
   Future<int> deleteMateria(int id) async {
     final db = await database;
-    try {
-      final count = await db.delete('materias', where: 'id = ?', whereArgs: [id]);
-      print('Materias eliminadas: $count');
-      return count;
-    } catch (e) {
-      print('Error al eliminar materia: $e');
-      return 0;
-    }
+    return await db.delete('materias', where: 'id = ?', whereArgs: [id]);
   }
 
-  // Métodos para evaluaciones
+  // Métodos para evaluaciones (mantener los existentes)
   Future<int> insertEvaluacion(
     int materiaId,
     String nombre,
@@ -252,54 +277,59 @@ class DatabaseHelper {
     double nota,
   ) async {
     final db = await database;
-    try {
-      final id = await db.insert('evaluaciones', {
-        'materia_id': materiaId,
-        'nombre': nombre,
-        'porcentaje': porcentaje,
-        'nota': nota,
-      });
-      print('Evaluación creada con ID: $id');
-      return id;
-    } catch (e) {
-      print('Error al crear evaluación: $e');
-      rethrow;
-    }
+    return await db.insert('evaluaciones', {
+      'materia_id': materiaId,
+      'nombre': nombre,
+      'porcentaje': porcentaje,
+      'nota': nota,
+    });
   }
 
   Future<List<Map<String, dynamic>>> getEvaluacionesPorMateria(
     int materiaId,
   ) async {
     final db = await database;
-    try {
-      final evaluaciones = await db.query(
-        'evaluaciones',
-        where: 'materia_id = ?',
-        whereArgs: [materiaId],
-      );
-      print('Evaluaciones obtenidas: ${evaluaciones.length}');
-      return evaluaciones;
-    } catch (e) {
-      print('Error al obtener evaluaciones: $e');
-      return [];
-    }
+    return await db.query(
+      'evaluaciones',
+      where: 'materia_id = ?',
+      whereArgs: [materiaId],
+    );
   }
 
   Future<int> deleteEvaluacion(int id) async {
     final db = await database;
-    try {
-      final count = await db.delete('evaluaciones', where: 'id = ?', whereArgs: [id]);
-      print('Evaluaciones eliminadas: $count');
-      return count;
-    } catch (e) {
-      print('Error al eliminar evaluación: $e');
-      return 0;
-    }
+    return await db.delete('evaluaciones', where: 'id = ?', whereArgs: [id]);
+  }
+
+  // Métodos para tareas (mantener los existentes)
+  Future<int> insertTarea(int userId, int semana, String descripcion) async {
+    final db = await database;
+    return await db.insert('tareas', {
+      'user_id': userId,
+      'semana': semana,
+      'descripcion': descripcion,
+    });
+  }
+
+  Future<List<Map<String, dynamic>>> getTareasPorSemana(
+    int userId,
+    int semana,
+  ) async {
+    final db = await database;
+    return await db.query(
+      'tareas',
+      where: 'user_id = ? AND semana = ?',
+      whereArgs: [userId, semana],
+    );
+  }
+
+  Future<int> deleteTarea(int id) async {
+    final db = await database;
+    return await db.delete('tareas', where: 'id = ?', whereArgs: [id]);
   }
 
   Future<void> close() async {
     final db = await instance.database;
     await db.close();
-    print('Base de datos cerrada');
   }
 }
