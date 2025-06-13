@@ -108,7 +108,7 @@ class _HomeScreenState extends State<HomeScreen> {
         onTap: (index) => setState(() => _currentIndex = index),
         items: const [
           BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Inicio'),
-          BottomNavigationBarItem(icon: Icon(Icons.edit), label: 'Notaciones'),
+          BottomNavigationBarItem(icon: Icon(Icons.edit), label: 'Anotaciones'),
           BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Perfil'),
         ],
         selectedItemColor: AppColors.primary,

@@ -28,7 +28,9 @@ class _PerfilExampleState extends State<PerfilExample> {
     super.initState();
     _nombreController = TextEditingController();
     _emailController = TextEditingController();
-    _descripcionController = TextEditingController(text: 'Estudiante de Ingeniería de Software en la Unimet');
+    _descripcionController = TextEditingController(
+      text: 'Estudiante de Ingeniería de Software en la Unimet',
+    );
     _loadUserData();
   }
 
@@ -42,7 +44,7 @@ class _PerfilExampleState extends State<PerfilExample> {
     }
 
     setState(() => _isLoading = true);
-    
+
     try {
       final user = await DatabaseHelper.instance.getUser(widget.username!);
       if (user != null) {
@@ -50,7 +52,9 @@ class _PerfilExampleState extends State<PerfilExample> {
           _userData = user;
           _nombreController.text = user['username'];
           _emailController.text = user['email'];
-          _descripcionController.text = user['descripcion'] ?? 'Estudiante de Ingeniería de Software en la Unimet';
+          _descripcionController.text =
+              user['descripcion'] ??
+              'Estudiante de Ingeniería de Software en la Unimet';
         });
       }
     } catch (e) {
@@ -83,6 +87,7 @@ class _PerfilExampleState extends State<PerfilExample> {
           'username': _nombreController.text,
           'email': _emailController.text,
           'descripcion': _descripcionController.text,
+          'descripcion': _descripcionController.text,
         },
         where: 'username = ?',
         whereArgs: [widget.username],
@@ -108,10 +113,7 @@ class _PerfilExampleState extends State<PerfilExample> {
 
   void _showSnackBar(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: Colors.orange,
-      ),
+      SnackBar(content: Text(message), backgroundColor: Colors.orange),
     );
   }
 
@@ -239,7 +241,8 @@ class _PerfilExampleState extends State<PerfilExample> {
                               color: Color(0xFFFF9800),
                             ),
                           ),
-                          if (widget.username != null) // CORRECCIÓN APLICADA AQUÍ
+                          if (widget.username !=
+                              null) // CORRECCIÓN APLICADA AQUÍ
                             IconButton(
                               icon: Icon(
                                 _editando ? Icons.check : Icons.edit,
@@ -323,7 +326,9 @@ class _PerfilExampleState extends State<PerfilExample> {
                       ),
                       const SizedBox(height: 8),
                       TableCalendar(
-                        firstDay: DateTime.now().subtract(const Duration(days: 365)),
+                        firstDay: DateTime.now().subtract(
+                          const Duration(days: 365),
+                        ),
                         lastDay: DateTime.now().add(const Duration(days: 365)),
                         focusedDay: _focusedDay,
                         calendarFormat: _calendarFormat,
@@ -358,7 +363,8 @@ class _PerfilExampleState extends State<PerfilExample> {
                             shape: BoxShape.circle,
                           ),
                         ),
-                        selectedDayPredicate: (day) => isSameDay(_selectedDay, day),
+                        selectedDayPredicate: (day) =>
+                            isSameDay(_selectedDay, day),
                         onDaySelected: (selectedDay, focusedDay) {
                           setState(() {
                             _selectedDay = selectedDay;
