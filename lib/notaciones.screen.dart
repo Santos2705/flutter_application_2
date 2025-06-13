@@ -12,12 +12,10 @@ class NotacionesExample extends StatefulWidget {
 
 class _NotacionesExampleState extends State<NotacionesExample> {
   late int _userId;
-  final List<Materia> _materias = [];
-  final _nuevaMateriaController = TextEditingController();
-  final List<TextEditingController> _evalControllers = [];
-  final List<TextEditingController> _porcentajeControllers = [];
-  final List<TextEditingController> _notaControllers = [];
+  List<Map<String, dynamic>> _trimestres = [];
+  final _nuevoTrimestreController = TextEditingController();
   bool _isLoading = true;
+  int? _trimestreSeleccionado;
 
   @override
   void initState() {
@@ -35,7 +33,7 @@ class _NotacionesExampleState extends State<NotacionesExample> {
       final user = await DatabaseHelper.instance.getUser(widget.username!);
       if (user != null) {
         setState(() => _userId = user['id']);
-        await _loadMaterias();
+        await _loadTrimestres();
       }
     } catch (e) {
       print('Error al cargar usuario: $e');
@@ -44,15 +42,303 @@ class _NotacionesExampleState extends State<NotacionesExample> {
     }
   }
 
-  Future<void> _loadMaterias() async {
+  Future<void> _loadTrimestres() async {
     if (widget.username == null) return;
 
     setState(() => _isLoading = true);
-    
+
     try {
-      final materiasDB = await DatabaseHelper.instance.getMaterias(_userId);
-      
-      // Limpiar listas antes de cargar nuevos datos
+      final trimestresDB = await DatabaseHelper.instance.getTrimestres(_userId);
+      setState(() => _trimestres = trimestresDB);
+    } catch (e) {
+      print('Error al cargar trimestres: $e');
+    } finally {
+      setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _agregarTrimestre() async {
+    if (_nuevoTrimestreController.text.isEmpty || widget.username == null)
+      return;
+
+    setState(() => _isLoading = true);
+
+    try {
+      final id = await DatabaseHelper.instance.insertTrimestre(
+        _userId,
+        _nuevoTrimestreController.text,
+      );
+
+      if (id > 0) {
+        _nuevoTrimestreController.clear();
+        await _loadTrimestres();
+      }
+    } catch (e) {
+      print('Error al agregar trimestre: $e');
+    } finally {
+      setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _eliminarTrimestre(int trimestreId) async {
+    setState(() => _isLoading = true);
+
+    try {
+      final count = await DatabaseHelper.instance.deleteTrimestre(trimestreId);
+      if (count > 0) {
+        await _loadTrimestres();
+        if (_trimestreSeleccionado == trimestreId) {
+          _trimestreSeleccionado = null;
+        }
+      }
+    } catch (e) {
+      print('Error al eliminar trimestre: $e');
+    } finally {
+      setState(() => _isLoading = false);
+    }
+  }
+
+  @override
+  void dispose() {
+    _nuevoTrimestreController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_isLoading) {
+      return Scaffold(
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              CircularProgressIndicator(),
+              SizedBox(height: 20),
+              Text('Cargando...'),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(
+          _trimestreSeleccionado == null
+              ? 'Anotaciones de Trimestres'
+              : 'Materias del Trimestre',
+        ),
+        leading: _trimestreSeleccionado != null
+            ? IconButton(
+                icon: Icon(Icons.arrow_back),
+                onPressed: () {
+                  setState(() {
+                    _trimestreSeleccionado = null;
+                  });
+                },
+              )
+            : null,
+        actions: [
+          if (widget.username != null &&
+              _trimestres.isNotEmpty &&
+              _trimestreSeleccionado == null)
+            IconButton(
+              icon: const Icon(Icons.delete_sweep),
+              onPressed: () {
+                showDialog(
+                  context: context,
+                  builder: (context) => AlertDialog(
+                    title: const Text('Confirmar'),
+                    content: const Text('¿Borrar todos los trimestres?'),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(context),
+                        child: const Text('Cancelar'),
+                      ),
+                      TextButton(
+                        onPressed: () async {
+                          Navigator.pop(context);
+                          for (var trimestre in _trimestres) {
+                            await DatabaseHelper.instance.deleteTrimestre(
+                              trimestre['id'],
+                            );
+                          }
+                          await _loadTrimestres();
+                        },
+                        child: const Text(
+                          'Borrar',
+                          style: TextStyle(color: Colors.red),
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              },
+              tooltip: 'Borrar todos los trimestres',
+            ),
+        ],
+      ),
+      body: widget.username == null
+          ? Center(
+              child: Text(
+                'Inicia sesión para gestionar tus trimestres',
+                style: TextStyle(fontSize: 16, color: Colors.grey),
+              ),
+            )
+          : Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: _trimestreSeleccionado == null
+                  ? _buildListaTrimestres()
+                  : MateriasDelTrimestre(
+                      trimestreId: _trimestreSeleccionado!,
+                      trimestreNombre: _trimestres.firstWhere(
+                        (t) => t['id'] == _trimestreSeleccionado,
+                      )['nombre'],
+                      username: widget.username,
+                      onMateriasUpdated: _loadTrimestres,
+                    ),
+            ),
+    );
+  }
+
+  Widget _buildListaTrimestres() {
+    return Column(
+      children: [
+        // Campo para agregar nuevo trimestre
+        Row(
+          children: [
+            Expanded(
+              child: TextField(
+                controller: _nuevoTrimestreController,
+                decoration: const InputDecoration(
+                  labelText: 'Nuevo Trimestre',
+                  hintText: 'Ej: Trimestre 1 - 2023',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+            ),
+            const SizedBox(width: 10),
+            ElevatedButton(
+              onPressed: _agregarTrimestre,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFFFF9800),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+              child: const Text(
+                'Agregar',
+                style: TextStyle(color: Colors.white),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 20),
+
+        // Lista de trimestres
+        Expanded(
+          child: _trimestres.isEmpty
+              ? Center(
+                  child: Text(
+                    'No hay trimestres registrados',
+                    style: TextStyle(fontSize: 16, color: Colors.grey),
+                  ),
+                )
+              : ListView.builder(
+                  itemCount: _trimestres.length,
+                  itemBuilder: (context, index) {
+                    final trimestre = _trimestres[index];
+                    return Card(
+                      elevation: 3,
+                      margin: const EdgeInsets.only(bottom: 15),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: ListTile(
+                        title: Text(
+                          trimestre['nombre'],
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: Colors.orange[800],
+                          ),
+                        ),
+                        subtitle:
+                            trimestre['fecha_inicio'] != null ||
+                                trimestre['fecha_fin'] != null
+                            ? Text(
+                                '${trimestre['fecha_inicio'] ?? 'Sin fecha'} - ${trimestre['fecha_fin'] ?? 'Sin fecha'}',
+                              )
+                            : null,
+                        trailing: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            IconButton(
+                              icon: Icon(Icons.delete, color: Colors.red),
+                              onPressed: () =>
+                                  _eliminarTrimestre(trimestre['id']),
+                            ),
+                          ],
+                        ),
+                        onTap: () {
+                          setState(() {
+                            _trimestreSeleccionado = trimestre['id'];
+                          });
+                        },
+                      ),
+                    );
+                  },
+                ),
+        ),
+      ],
+    );
+  }
+}
+
+class MateriasDelTrimestre extends StatefulWidget {
+  final int trimestreId;
+  final String trimestreNombre;
+  final String? username;
+  final VoidCallback? onMateriasUpdated;
+
+  const MateriasDelTrimestre({
+    super.key,
+    required this.trimestreId,
+    required this.trimestreNombre,
+    this.username,
+    this.onMateriasUpdated,
+  });
+
+  @override
+  State<MateriasDelTrimestre> createState() => _MateriasDelTrimestreState();
+}
+
+class _MateriasDelTrimestreState extends State<MateriasDelTrimestre> {
+  final List<Materia> _materias = [];
+  final _nuevaMateriaController = TextEditingController();
+  final List<TextEditingController> _evalControllers = [];
+  final List<TextEditingController> _porcentajeControllers = [];
+  final List<TextEditingController> _notaControllers = [];
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadMaterias();
+  }
+
+  Future<void> _loadMaterias() async {
+    if (widget.username == null) {
+      setState(() => _isLoading = false);
+      return;
+    }
+
+    setState(() => _isLoading = true);
+
+    try {
+      final materiasDB = await DatabaseHelper.instance.getMateriasPorTrimestre(
+        widget.trimestreId,
+      );
+
       _materias.clear();
       _evalControllers.clear();
       _porcentajeControllers.clear();
@@ -61,14 +347,18 @@ class _NotacionesExampleState extends State<NotacionesExample> {
       for (var materiaDB in materiasDB) {
         final evaluacionesDB = await DatabaseHelper.instance
             .getEvaluacionesPorMateria(materiaDB['id']);
-        
+
         final materia = Materia(materiaDB['nombre'], materiaDB['id']);
-        materia.evaluaciones = evaluacionesDB.map((eval) => Evaluacion(
-          eval['nombre'],
-          eval['porcentaje'],
-          eval['nota'],
-          eval['id'],
-        )).toList();
+        materia.evaluaciones = evaluacionesDB
+            .map(
+              (eval) => Evaluacion(
+                eval['nombre'],
+                eval['porcentaje'],
+                eval['nota'],
+                eval['id'],
+              ),
+            )
+            .toList();
 
         _materias.add(materia);
         _evalControllers.add(TextEditingController());
@@ -86,19 +376,22 @@ class _NotacionesExampleState extends State<NotacionesExample> {
     if (_nuevaMateriaController.text.isEmpty || widget.username == null) return;
 
     setState(() => _isLoading = true);
-    
+
     try {
       final id = await DatabaseHelper.instance.insertMateria(
-        _userId,
+        widget.trimestreId,
         _nuevaMateriaController.text,
       );
-      
+
       if (id > 0) {
         _materias.add(Materia(_nuevaMateriaController.text, id));
         _evalControllers.add(TextEditingController());
         _porcentajeControllers.add(TextEditingController());
         _notaControllers.add(TextEditingController());
         _nuevaMateriaController.clear();
+        if (widget.onMateriasUpdated != null) {
+          widget.onMateriasUpdated!();
+        }
       }
     } catch (e) {
       print('Error al agregar materia: $e');
@@ -116,7 +409,7 @@ class _NotacionesExampleState extends State<NotacionesExample> {
     if (_evalControllers[materiaIndex].text.isEmpty || porcentaje <= 0) return;
 
     setState(() => _isLoading = true);
-    
+
     try {
       final id = await DatabaseHelper.instance.insertEvaluacion(
         materia.id,
@@ -124,18 +417,18 @@ class _NotacionesExampleState extends State<NotacionesExample> {
         porcentaje,
         nota,
       );
-      
+
       if (id > 0) {
-        materia.evaluaciones.add(Evaluacion(
-          _evalControllers[materiaIndex].text,
-          porcentaje,
-          nota,
-          id,
-        ));
-        
+        materia.evaluaciones.add(
+          Evaluacion(_evalControllers[materiaIndex].text, porcentaje, nota, id),
+        );
+
         _evalControllers[materiaIndex].clear();
         _porcentajeControllers[materiaIndex].clear();
         _notaControllers[materiaIndex].clear();
+        if (widget.onMateriasUpdated != null) {
+          widget.onMateriasUpdated!();
+        }
       }
     } catch (e) {
       print('Error al agregar evaluación: $e');
@@ -146,15 +439,20 @@ class _NotacionesExampleState extends State<NotacionesExample> {
 
   Future<void> _eliminarEvaluacion(int materiaIndex, int evalIndex) async {
     final evaluacion = _materias[materiaIndex].evaluaciones[evalIndex];
-    
+
     setState(() => _isLoading = true);
-    
+
     try {
-      final count = await DatabaseHelper.instance.deleteEvaluacion(evaluacion.id);
+      final count = await DatabaseHelper.instance.deleteEvaluacion(
+        evaluacion.id,
+      );
       if (count > 0) {
         setState(() {
           _materias[materiaIndex].evaluaciones.removeAt(evalIndex);
         });
+        if (widget.onMateriasUpdated != null) {
+          widget.onMateriasUpdated!();
+        }
       }
     } catch (e) {
       print('Error al eliminar evaluación: $e');
@@ -165,9 +463,9 @@ class _NotacionesExampleState extends State<NotacionesExample> {
 
   Future<void> _eliminarMateria(int materiaIndex) async {
     final materia = _materias[materiaIndex];
-    
+
     setState(() => _isLoading = true);
-    
+
     try {
       final count = await DatabaseHelper.instance.deleteMateria(materia.id);
       if (count > 0) {
@@ -177,6 +475,9 @@ class _NotacionesExampleState extends State<NotacionesExample> {
           _porcentajeControllers.removeAt(materiaIndex);
           _notaControllers.removeAt(materiaIndex);
         });
+        if (widget.onMateriasUpdated != null) {
+          widget.onMateriasUpdated!();
+        }
       }
     } catch (e) {
       print('Error al eliminar materia: $e');
@@ -196,17 +497,24 @@ class _NotacionesExampleState extends State<NotacionesExample> {
     if (widget.username == null) return;
 
     setState(() => _isLoading = true);
-    
+
     try {
       final db = await DatabaseHelper.instance.database;
-      await db.delete('materias', where: 'user_id = ?', whereArgs: [_userId]);
-      
+      await db.delete(
+        'materias',
+        where: 'trimestre_id = ?',
+        whereArgs: [widget.trimestreId],
+      );
+
       setState(() {
         _materias.clear();
         _evalControllers.clear();
         _porcentajeControllers.clear();
         _notaControllers.clear();
       });
+      if (widget.onMateriasUpdated != null) {
+        widget.onMateriasUpdated!();
+      }
     } catch (e) {
       print('Error al borrar todas las materias: $e');
     } finally {
@@ -232,287 +540,274 @@ class _NotacionesExampleState extends State<NotacionesExample> {
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
-      return Scaffold(
-        body: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              CircularProgressIndicator(),
-              SizedBox(height: 20),
-              Text('Cargando...'),
-            ],
-          ),
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            CircularProgressIndicator(),
+            SizedBox(height: 20),
+            Text('Cargando materias...'),
+          ],
         ),
       );
     }
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Registro de Notas'),
-        actions: [
-          if (widget.username != null)
-            IconButton(
-              icon: const Icon(Icons.delete_sweep),
-              onPressed: () {
-                showDialog(
-                  context: context,
-                  builder: (context) => AlertDialog(
-                    title: const Text('Confirmar'),
-                    content: const Text('¿Borrar todas las materias y evaluaciones?'),
-                    actions: [
-                      TextButton(
-                        onPressed: () => Navigator.pop(context),
-                        child: const Text('Cancelar'),
-                      ),
-                      TextButton(
-                        onPressed: () async {
-                          Navigator.pop(context);
-                          await _eliminarTodasLasMaterias();
-                        },
-                        child: const Text('Borrar', style: TextStyle(color: Colors.red)),
-                      ),
-                    ],
-                  ),
-                );
-              },
-              tooltip: 'Borrar todas las materias',
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(bottom: 16.0),
+          child: Text(
+            'Trimestre: ${widget.trimestreNombre}',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: Colors.orange[800],
             ),
-        ],
-      ),
-      body: widget.username == null
-          ? Center(
-              child: Text(
-                'Inicia sesión para gestionar tus materias',
-                style: TextStyle(fontSize: 16, color: Colors.grey),
+          ),
+        ),
+        // Campo para agregar nueva materia
+        Row(
+          children: [
+            Expanded(
+              child: TextField(
+                controller: _nuevaMateriaController,
+                decoration: const InputDecoration(
+                  labelText: 'Nueva Materia',
+                  border: OutlineInputBorder(),
+                ),
               ),
-            )
-          : Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                children: [
-                  // Campo para agregar nueva materia
-                  Row(
-                    children: [
-                      Expanded(
-                        child: TextField(
-                          controller: _nuevaMateriaController,
-                          decoration: const InputDecoration(
-                            labelText: 'Nueva Materia',
-                            border: OutlineInputBorder(),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      ElevatedButton(
-                        onPressed: _agregarMateria,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFFFF9800),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                        ),
-                        child: const Text(
-                          'Agregar',
-                          style: TextStyle(color: Colors.white),
-                        ),
-                      ),
-                    ],
+            ),
+            const SizedBox(width: 10),
+            ElevatedButton(
+              onPressed: _agregarMateria,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFFFF9800),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+              child: const Text(
+                'Agregar',
+                style: TextStyle(color: Colors.white),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 20),
+
+        // Lista de materias
+        Expanded(
+          child: _materias.isEmpty
+              ? Center(
+                  child: Text(
+                    'No hay materias registradas en este trimestre',
+                    style: TextStyle(fontSize: 16, color: Colors.grey),
                   ),
-                  const SizedBox(height: 20),
-
-                  // Lista de materias
-                  Expanded(
-                    child: _materias.isEmpty
-                        ? Center(
-                            child: Text(
-                              'No hay materias registradas',
-                              style: TextStyle(fontSize: 16, color: Colors.grey),
-                            ),
-                          )
-                        : ListView.builder(
-                            itemCount: _materias.length,
-                            itemBuilder: (context, materiaIndex) {
-                              final materia = _materias[materiaIndex];
-                              return Card(
-                                elevation: 3,
-                                margin: const EdgeInsets.only(bottom: 15),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(10),
+                )
+              : ListView.builder(
+                  itemCount: _materias.length,
+                  itemBuilder: (context, materiaIndex) {
+                    final materia = _materias[materiaIndex];
+                    return Card(
+                      elevation: 3,
+                      margin: const EdgeInsets.only(bottom: 15),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.all(12.0),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // Encabezado de materia con botón de eliminar
+                            Row(
+                              children: [
+                                Text(
+                                  materia.nombre,
+                                  style: const TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                    color: Color(0xFFFF9800),
+                                  ),
                                 ),
-                                child: Padding(
-                                  padding: const EdgeInsets.all(12.0),
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                const Spacer(),
+                                IconButton(
+                                  icon: const Icon(
+                                    Icons.delete,
+                                    color: Colors.red,
+                                  ),
+                                  onPressed: () =>
+                                      _eliminarMateria(materiaIndex),
+                                ),
+                              ],
+                            ),
+                            const Divider(),
+
+                            // Campos para nueva evaluación
+                            Padding(
+                              padding: const EdgeInsets.symmetric(
+                                vertical: 8.0,
+                              ),
+                              child: Row(
+                                children: [
+                                  Expanded(
+                                    flex: 3,
+                                    child: TextField(
+                                      controller:
+                                          _evalControllers[materiaIndex],
+                                      decoration: InputDecoration(
+                                        labelText: 'Evaluación',
+                                        border: OutlineInputBorder(
+                                          borderRadius: BorderRadius.circular(
+                                            8,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    flex: 1,
+                                    child: TextField(
+                                      controller:
+                                          _porcentajeControllers[materiaIndex],
+                                      keyboardType: TextInputType.number,
+                                      decoration: InputDecoration(
+                                        labelText: '%',
+                                        border: OutlineInputBorder(
+                                          borderRadius: BorderRadius.circular(
+                                            8,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    flex: 1,
+                                    child: TextField(
+                                      controller:
+                                          _notaControllers[materiaIndex],
+                                      keyboardType: TextInputType.number,
+                                      decoration: InputDecoration(
+                                        labelText: 'Nota',
+                                        border: OutlineInputBorder(
+                                          borderRadius: BorderRadius.circular(
+                                            8,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                  IconButton(
+                                    icon: const Icon(
+                                      Icons.add_circle,
+                                      color: Color(0xFFFF6106),
+                                    ),
+                                    onPressed: () =>
+                                        _agregarEvaluacion(materiaIndex),
+                                  ),
+                                ],
+                              ),
+                            ),
+
+                            // Lista de evaluaciones
+                            ...materia.evaluaciones.asMap().entries.map((
+                              entry,
+                            ) {
+                              final evalIndex = entry.key;
+                              final eval = entry.value;
+                              return Dismissible(
+                                key: Key('eval-${materia.id}-${eval.id}'),
+                                background: Container(
+                                  color: Colors.red.withOpacity(0.3),
+                                ),
+                                confirmDismiss: (direction) async {
+                                  return await showDialog(
+                                    context: context,
+                                    builder: (context) => AlertDialog(
+                                      title: const Text('Confirmar'),
+                                      content: const Text(
+                                        '¿Eliminar esta evaluación?',
+                                      ),
+                                      actions: [
+                                        TextButton(
+                                          onPressed: () =>
+                                              Navigator.of(context).pop(false),
+                                          child: const Text('Cancelar'),
+                                        ),
+                                        TextButton(
+                                          onPressed: () =>
+                                              Navigator.of(context).pop(true),
+                                          child: const Text(
+                                            'Eliminar',
+                                            style: TextStyle(color: Colors.red),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  );
+                                },
+                                onDismissed: (direction) {
+                                  _eliminarEvaluacion(materiaIndex, evalIndex);
+                                },
+                                child: ListTile(
+                                  contentPadding: EdgeInsets.zero,
+                                  leading: const Icon(
+                                    Icons.assignment,
+                                    color: Colors.blueAccent,
+                                  ),
+                                  title: Text(eval.nombre),
+                                  subtitle: Text(
+                                    '${eval.porcentaje}% - Nota: ${eval.nota}',
+                                  ),
+                                  trailing: Row(
+                                    mainAxisSize: MainAxisSize.min,
                                     children: [
-                                      // Encabezado de materia con botón de eliminar
-                                      Row(
-                                        children: [
-                                          Text(
-                                            materia.nombre,
-                                            style: const TextStyle(
-                                              fontSize: 18,
-                                              fontWeight: FontWeight.bold,
-                                              color: Color(0xFFFF9800),
-                                            ),
-                                          ),
-                                          const Spacer(),
-                                          IconButton(
-                                            icon: const Icon(
-                                              Icons.delete,
-                                              color: Colors.red,
-                                            ),
-                                            onPressed: () => _eliminarMateria(materiaIndex),
-                                          ),
-                                        ],
-                                      ),
-                                      const Divider(),
-
-                                      // Campos para nueva evaluación
-                                      Padding(
-                                        padding: const EdgeInsets.symmetric(vertical: 8.0),
-                                        child: Row(
-                                          children: [
-                                            Expanded(
-                                              flex: 3,
-                                              child: TextField(
-                                                controller: _evalControllers[materiaIndex],
-                                                decoration: InputDecoration(
-                                                  labelText: 'Evaluación',
-                                                  border: OutlineInputBorder(
-                                                    borderRadius: BorderRadius.circular(8),
-                                                  ),
-                                                ),
-                                              ),
-                                            ),
-                                            const SizedBox(width: 8),
-                                            Expanded(
-                                              flex: 1,
-                                              child: TextField(
-                                                controller: _porcentajeControllers[materiaIndex],
-                                                keyboardType: TextInputType.number,
-                                                decoration: InputDecoration(
-                                                  labelText: '%',
-                                                  border: OutlineInputBorder(
-                                                    borderRadius: BorderRadius.circular(8),
-                                                  ),
-                                                ),
-                                              ),
-                                            ),
-                                            const SizedBox(width: 8),
-                                            Expanded(
-                                              flex: 1,
-                                              child: TextField(
-                                                controller: _notaControllers[materiaIndex],
-                                                keyboardType: TextInputType.number,
-                                                decoration: InputDecoration(
-                                                  labelText: 'Nota',
-                                                  border: OutlineInputBorder(
-                                                    borderRadius: BorderRadius.circular(8),
-                                                  ),
-                                                ),
-                                              ),
-                                            ),
-                                            IconButton(
-                                              icon: const Icon(
-                                                Icons.add_circle,
-                                                color: Color(0xFFFF6106),
-                                              ),
-                                              onPressed: () => _agregarEvaluacion(materiaIndex),
-                                            ),
-                                          ],
+                                      Text(
+                                        '${eval.puntosObtenidos.toStringAsFixed(1)} pts',
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.bold,
                                         ),
                                       ),
-
-                                      // Lista de evaluaciones
-                                      ...materia.evaluaciones.asMap().entries.map((entry) {
-                                        final evalIndex = entry.key;
-                                        final eval = entry.value;
-                                        return Dismissible(
-                                          key: Key('eval-${materia.id}-${eval.id}'),
-                                          background: Container(
-                                            color: Colors.red.withOpacity(0.3),
-                                          ),
-                                          confirmDismiss: (direction) async {
-                                            return await showDialog(
-                                              context: context,
-                                              builder: (context) => AlertDialog(
-                                                title: const Text('Confirmar'),
-                                                content: const Text('¿Eliminar esta evaluación?'),
-                                                actions: [
-                                                  TextButton(
-                                                    onPressed: () => Navigator.of(context).pop(false),
-                                                    child: const Text('Cancelar'),
-                                                  ),
-                                                  TextButton(
-                                                    onPressed: () => Navigator.of(context).pop(true),
-                                                    child: const Text(
-                                                      'Eliminar',
-                                                      style: TextStyle(color: Colors.red),
-                                                    ),
-                                                  ),
-                                                ],
-                                              ),
-                                            );
-                                          },
-                                          onDismissed: (direction) {
-                                            _eliminarEvaluacion(materiaIndex, evalIndex);
-                                          },
-                                          child: ListTile(
-                                            contentPadding: EdgeInsets.zero,
-                                            leading: const Icon(
-                                              Icons.assignment,
-                                              color: Colors.blueAccent,
-                                            ),
-                                            title: Text(eval.nombre),
-                                            subtitle: Text(
-                                              '${eval.porcentaje}% - Nota: ${eval.nota}',
-                                            ),
-                                            trailing: Row(
-                                              mainAxisSize: MainAxisSize.min,
-                                              children: [
-                                                Text(
-                                                  '${eval.puntosObtenidos.toStringAsFixed(1)} pts',
-                                                  style: const TextStyle(
-                                                    fontWeight: FontWeight.bold,
-                                                  ),
-                                                ),
-                                                IconButton(
-                                                  icon: const Icon(
-                                                    Icons.delete_outline,
-                                                    color: Colors.red,
-                                                  ),
-                                                  onPressed: () {
-                                                    _eliminarEvaluacion(materiaIndex, evalIndex);
-                                                  },
-                                                ),
-                                              ],
-                                            ),
-                                          ),
-                                        );
-                                      }),
-
-                                      // Total acumulado
-                                      Padding(
-                                        padding: const EdgeInsets.only(top: 10),
-                                        child: Text(
-                                          'Total acumulado: ${_calcularPromedio(materiaIndex).toStringAsFixed(1)} pts',
-                                          style: const TextStyle(
-                                            fontWeight: FontWeight.bold,
-                                            fontSize: 16,
-                                            color: Color(0xFFFF9800),
-                                          ),
+                                      IconButton(
+                                        icon: const Icon(
+                                          Icons.delete_outline,
+                                          color: Colors.red,
                                         ),
+                                        onPressed: () {
+                                          _eliminarEvaluacion(
+                                            materiaIndex,
+                                            evalIndex,
+                                          );
+                                        },
                                       ),
                                     ],
                                   ),
                                 ),
                               );
-                            },
-                          ),
-                  ),
-                ],
-              ),
-            ),
+                            }),
+
+                            // Total acumulado
+                            Padding(
+                              padding: const EdgeInsets.only(top: 10),
+                              child: Text(
+                                'Total acumulado: ${_calcularPromedio(materiaIndex).toStringAsFixed(1)} pts',
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 16,
+                                  color: Color(0xFFFF9800),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                ),
+        ),
+      ],
     );
   }
 }
