@@ -87,6 +87,7 @@ class _PerfilExampleState extends State<PerfilExample> {
           'username': _nombreController.text,
           'email': _emailController.text,
           'descripcion': _descripcionController.text,
+          'descripcion': _descripcionController.text,
         },
         where: 'username = ?',
         whereArgs: [widget.username],
