@@ -19,6 +19,7 @@ class _HomeScreenState extends State<HomeScreen> {
   late bool _isLoggedIn;
   late String _username;
   late List<Widget> _screens;
+  int _selectedWeek = 1; // Añadimos esta variable para manejar la semana seleccionada
 
   @override
   void initState() {
@@ -30,7 +31,16 @@ class _HomeScreenState extends State<HomeScreen> {
 
   void _initializeScreens() {
     _screens = [
-      InicioExample(username: _isLoggedIn ? _username : null),
+      InicioExample(
+        username: _isLoggedIn ? _username : null,
+        onWeekChanged: (newWeek) {
+          // Callback para actualizar la semana seleccionada
+          setState(() {
+            _selectedWeek = newWeek;
+          });
+        },
+        initialWeek: _selectedWeek, // Pasamos la semana seleccionada
+      ),
       NotacionesExample(username: _isLoggedIn ? _username : null),
       PerfilExample(username: _isLoggedIn ? _username : null),
     ];
@@ -81,7 +91,10 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
         ],
       ),
-      body: _screens[_currentIndex],
+      body: IndexedStack(
+        index: _currentIndex,
+        children: _screens,
+      ),
       floatingActionButton: _isLoggedIn
           ? FloatingActionButton(
               onPressed: () {
@@ -108,7 +121,7 @@ class _HomeScreenState extends State<HomeScreen> {
         onTap: (index) => setState(() => _currentIndex = index),
         items: const [
           BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Inicio'),
-          BottomNavigationBarItem(icon: Icon(Icons.edit), label: 'Anotaciones'),
+          BottomNavigationBarItem(icon: Icon(Icons.edit), label: 'Notaciones'),
           BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Perfil'),
         ],
         selectedItemColor: AppColors.primary,
