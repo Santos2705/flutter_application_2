@@ -36,7 +36,7 @@ class _NotacionesExampleState extends State<NotacionesExample> {
         await _loadTrimestres();
       }
     } catch (e) {
-      print('Error al cargar usuario: $e');
+      debugPrint('Error al cargar usuario: $e');
     } finally {
       setState(() => _isLoading = false);
     }
@@ -51,15 +51,16 @@ class _NotacionesExampleState extends State<NotacionesExample> {
       final trimestresDB = await DatabaseHelper.instance.getTrimestres(_userId);
       setState(() => _trimestres = trimestresDB);
     } catch (e) {
-      print('Error al cargar trimestres: $e');
+      debugPrint('Error al cargar trimestres: $e');
     } finally {
       setState(() => _isLoading = false);
     }
   }
 
   Future<void> _agregarTrimestre() async {
-    if (_nuevoTrimestreController.text.isEmpty || widget.username == null)
+    if (_nuevoTrimestreController.text.isEmpty || widget.username == null) {
       return;
+    }
 
     setState(() => _isLoading = true);
 
@@ -74,7 +75,13 @@ class _NotacionesExampleState extends State<NotacionesExample> {
         await _loadTrimestres();
       }
     } catch (e) {
-      print('Error al agregar trimestre: $e');
+      debugPrint('Error al agregar trimestre: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error al agregar trimestre: ${e.toString()}'),
+          backgroundColor: Colors.red,
+        ),
+      );
     } finally {
       setState(() => _isLoading = false);
     }
@@ -92,7 +99,13 @@ class _NotacionesExampleState extends State<NotacionesExample> {
         }
       }
     } catch (e) {
-      print('Error al eliminar trimestre: $e');
+      debugPrint('Error al eliminar trimestre: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error al eliminar trimestre: ${e.toString()}'),
+          backgroundColor: Colors.red,
+        ),
+      );
     } finally {
       setState(() => _isLoading = false);
     }
@@ -366,14 +379,28 @@ class _MateriasDelTrimestreState extends State<MateriasDelTrimestre> {
         _notaControllers.add(TextEditingController());
       }
     } catch (e) {
-      print('Error al cargar materias: $e');
+      debugPrint('Error al cargar materias: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error al cargar materias: ${e.toString()}'),
+          backgroundColor: Colors.red,
+        ),
+      );
     } finally {
       setState(() => _isLoading = false);
     }
   }
 
   Future<void> _agregarMateria() async {
-    if (_nuevaMateriaController.text.isEmpty || widget.username == null) return;
+    if (_nuevaMateriaController.text.isEmpty || widget.username == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Ingrese un nombre para la materia'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
 
     setState(() => _isLoading = true);
 
@@ -394,33 +421,73 @@ class _MateriasDelTrimestreState extends State<MateriasDelTrimestre> {
         }
       }
     } catch (e) {
-      print('Error al agregar materia: $e');
+      debugPrint('Error al agregar materia: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error al agregar materia: ${e.toString()}'),
+          backgroundColor: Colors.red,
+        ),
+      );
     } finally {
       setState(() => _isLoading = false);
     }
   }
 
   Future<void> _agregarEvaluacion(int materiaIndex) async {
-    final materia = _materias[materiaIndex];
-    final porcentaje =
-        double.tryParse(_porcentajeControllers[materiaIndex].text) ?? 0.0;
-    final nota = double.tryParse(_notaControllers[materiaIndex].text) ?? 0.0;
+    final nombreEvaluacion = _evalControllers[materiaIndex].text;
+    final porcentajeText = _porcentajeControllers[materiaIndex].text;
+    final notaText = _notaControllers[materiaIndex].text;
 
-    if (_evalControllers[materiaIndex].text.isEmpty || porcentaje <= 0) return;
+    // Validar campos vacíos
+    if (nombreEvaluacion.isEmpty ||
+        porcentajeText.isEmpty ||
+        notaText.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Complete todos los campos'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    // Validar porcentaje
+    final porcentaje = double.tryParse(porcentajeText) ?? 0.0;
+    if (porcentaje <= 0 || porcentaje > 100) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('El porcentaje debe estar entre 0.1 y 100'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    // Validar nota
+    final nota = double.tryParse(notaText) ?? 0.0;
+    if (nota < 0 || nota > 20) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('La nota debe estar entre 0 y 20'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
 
     setState(() => _isLoading = true);
 
     try {
       final id = await DatabaseHelper.instance.insertEvaluacion(
-        materia.id,
-        _evalControllers[materiaIndex].text,
+        _materias[materiaIndex].id,
+        nombreEvaluacion,
         porcentaje,
         nota,
       );
 
       if (id > 0) {
-        materia.evaluaciones.add(
-          Evaluacion(_evalControllers[materiaIndex].text, porcentaje, nota, id),
+        _materias[materiaIndex].evaluaciones.add(
+          Evaluacion(nombreEvaluacion, porcentaje, nota, id),
         );
 
         _evalControllers[materiaIndex].clear();
@@ -431,7 +498,13 @@ class _MateriasDelTrimestreState extends State<MateriasDelTrimestre> {
         }
       }
     } catch (e) {
-      print('Error al agregar evaluación: $e');
+      debugPrint('Error al agregar evaluación: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error al agregar evaluación: ${e.toString()}'),
+          backgroundColor: Colors.red,
+        ),
+      );
     } finally {
       setState(() => _isLoading = false);
     }
@@ -455,7 +528,13 @@ class _MateriasDelTrimestreState extends State<MateriasDelTrimestre> {
         }
       }
     } catch (e) {
-      print('Error al eliminar evaluación: $e');
+      debugPrint('Error al eliminar evaluación: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error al eliminar evaluación: ${e.toString()}'),
+          backgroundColor: Colors.red,
+        ),
+      );
     } finally {
       setState(() => _isLoading = false);
     }
@@ -480,7 +559,13 @@ class _MateriasDelTrimestreState extends State<MateriasDelTrimestre> {
         }
       }
     } catch (e) {
-      print('Error al eliminar materia: $e');
+      debugPrint('Error al eliminar materia: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error al eliminar materia: ${e.toString()}'),
+          backgroundColor: Colors.red,
+        ),
+      );
     } finally {
       setState(() => _isLoading = false);
     }
@@ -491,35 +576,6 @@ class _MateriasDelTrimestreState extends State<MateriasDelTrimestre> {
       0.0,
       (double sum, Evaluacion eval) => sum + eval.puntosObtenidos,
     );
-  }
-
-  Future<void> _eliminarTodasLasMaterias() async {
-    if (widget.username == null) return;
-
-    setState(() => _isLoading = true);
-
-    try {
-      final db = await DatabaseHelper.instance.database;
-      await db.delete(
-        'materias',
-        where: 'trimestre_id = ?',
-        whereArgs: [widget.trimestreId],
-      );
-
-      setState(() {
-        _materias.clear();
-        _evalControllers.clear();
-        _porcentajeControllers.clear();
-        _notaControllers.clear();
-      });
-      if (widget.onMateriasUpdated != null) {
-        widget.onMateriasUpdated!();
-      }
-    } catch (e) {
-      print('Error al borrar todas las materias: $e');
-    } finally {
-      setState(() => _isLoading = false);
-    }
   }
 
   @override
@@ -690,7 +746,7 @@ class _MateriasDelTrimestreState extends State<MateriasDelTrimestre> {
                                           _notaControllers[materiaIndex],
                                       keyboardType: TextInputType.number,
                                       decoration: InputDecoration(
-                                        labelText: 'Nota',
+                                        labelText: 'Nota (0-20)',
                                         border: OutlineInputBorder(
                                           borderRadius: BorderRadius.circular(
                                             8,
