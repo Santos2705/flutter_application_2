@@ -468,7 +468,7 @@ class _MateriasDelTrimestreState extends State<MateriasDelTrimestre> {
     if (nota < 0 || nota > 20) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('La nota debe estar entre 0 y 20'),
+          content: Text('La nota debe se menor o igual a 20'),
           backgroundColor: Colors.red,
         ),
       );
@@ -613,11 +613,11 @@ class _MateriasDelTrimestreState extends State<MateriasDelTrimestre> {
         Padding(
           padding: const EdgeInsets.only(bottom: 16.0),
           child: Text(
-            'Trimestre: ${widget.trimestreNombre}',
+            ' ${widget.trimestreNombre}',
             style: TextStyle(
-              fontSize: 18,
+              fontSize: 25,
               fontWeight: FontWeight.bold,
-              color: Colors.orange[800],
+              color: Colors.orange[0xFFFF6106],
             ),
           ),
         ),
