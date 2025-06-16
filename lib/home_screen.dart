@@ -44,7 +44,7 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
       _buildScreen(
         loggedInWidget: NotacionesExample(username: _username),
-        featureName: 'las notaciones',
+        featureName: 'las anotaciones',
       ),
       _buildScreen(
         loggedInWidget: PerfilExample(username: _username),
@@ -125,7 +125,7 @@ class _HomeScreenState extends State<HomeScreen> {
         onTap: (index) => setState(() => _currentIndex = index),
         items: const [
           BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Inicio'),
-          BottomNavigationBarItem(icon: Icon(Icons.edit), label: 'Notaciones'),
+          BottomNavigationBarItem(icon: Icon(Icons.edit), label: 'Anotaciones'),
           BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Perfil'),
         ],
         selectedItemColor: AppColors.primary,
