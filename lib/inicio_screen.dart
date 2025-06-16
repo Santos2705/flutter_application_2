@@ -3,8 +3,15 @@ import 'database_helper.dart';
 
 class InicioExample extends StatefulWidget {
   final String? username;
+  final Function(int) onWeekChanged;
+  final int initialWeek;
 
-  const InicioExample({super.key, this.username, required Null Function(dynamic newWeek) onWeekChanged, required int initialWeek});
+  const InicioExample({
+    super.key,
+    this.username,
+    required this.onWeekChanged,
+    required this.initialWeek,
+  });
 
   @override
   State<InicioExample> createState() => _InicioExampleState();
@@ -12,7 +19,7 @@ class InicioExample extends StatefulWidget {
 
 class _InicioExampleState extends State<InicioExample> {
   bool _showWeekSelector = false;
-  int _selectedWeek = 1;
+  late int _selectedWeek;
   final Map<int, List<Map<String, dynamic>>> _weeklyTasks = {};
   bool _isLoading = true;
   final GlobalKey<_WeekTaskScreenState> _weekTaskScreenKey = GlobalKey();
@@ -20,6 +27,7 @@ class _InicioExampleState extends State<InicioExample> {
   @override
   void initState() {
     super.initState();
+    _selectedWeek = widget.initialWeek;
     _loadWeeklyTasks();
   }
 
@@ -30,14 +38,17 @@ class _InicioExampleState extends State<InicioExample> {
     }
 
     setState(() => _isLoading = true);
-    
+
     try {
       final user = await DatabaseHelper.instance.getUser(widget.username!);
       if (user != null) {
-        await Future.wait(List.generate(12, (week) async {
-          final weekNumber = week + 1;
-          _weeklyTasks[weekNumber] = await DatabaseHelper.instance.getTareasPorSemana(user['id'], weekNumber);
-        }));
+        await Future.wait(
+          List.generate(12, (week) async {
+            final weekNumber = week + 1;
+            _weeklyTasks[weekNumber] = await DatabaseHelper.instance
+                .getTareasPorSemana(user['id'], weekNumber);
+          }),
+        );
       }
     } catch (e) {
       debugPrint('Error al cargar tareas: $e');
@@ -47,9 +58,11 @@ class _InicioExampleState extends State<InicioExample> {
   }
 
   Future<void> _navigateToWeekScreen(int week) async {
-    // Guardamos la semana seleccionada antes de navegar
+    if (widget.username == null) return;
+
     final previousWeek = _selectedWeek;
-    
+    widget.onWeekChanged(week);
+
     await Navigator.push(
       context,
       MaterialPageRoute(
@@ -63,11 +76,9 @@ class _InicioExampleState extends State<InicioExample> {
       ),
     );
 
-    // Restauramos la semana seleccionada al regresar
     if (mounted) {
-      setState(() {
-        _selectedWeek = previousWeek;
-      });
+      setState(() => _selectedWeek = previousWeek);
+      widget.onWeekChanged(previousWeek);
     }
   }
 
@@ -77,11 +88,12 @@ class _InicioExampleState extends State<InicioExample> {
     try {
       final user = await DatabaseHelper.instance.getUser(widget.username!);
       if (user != null) {
-        final updatedTasks = await DatabaseHelper.instance.getTareasPorSemana(user['id'], week);
+        final updatedTasks = await DatabaseHelper.instance.getTareasPorSemana(
+          user['id'],
+          week,
+        );
         if (mounted) {
-          setState(() {
-            _weeklyTasks[week] = updatedTasks;
-          });
+          setState(() => _weeklyTasks[week] = updatedTasks);
         }
       }
     } catch (e) {
@@ -92,11 +104,7 @@ class _InicioExampleState extends State<InicioExample> {
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
-      return const Scaffold(
-        body: Center(
-          child: CircularProgressIndicator(),
-        ),
-      );
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
     return Scaffold(
@@ -118,9 +126,13 @@ class _InicioExampleState extends State<InicioExample> {
                 ),
                 const SizedBox(height: 8),
                 GestureDetector(
-                  onTap: () => setState(() => _showWeekSelector = !_showWeekSelector),
+                  onTap: () =>
+                      setState(() => _showWeekSelector = !_showWeekSelector),
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 12,
+                    ),
                     decoration: BoxDecoration(
                       border: Border.all(color: Colors.orange),
                       borderRadius: BorderRadius.circular(8),
@@ -136,7 +148,9 @@ class _InicioExampleState extends State<InicioExample> {
                           ),
                         ),
                         Icon(
-                          _showWeekSelector ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down,
+                          _showWeekSelector
+                              ? Icons.keyboard_arrow_up
+                              : Icons.keyboard_arrow_down,
                           color: Colors.orange,
                         ),
                       ],
@@ -170,7 +184,9 @@ class _InicioExampleState extends State<InicioExample> {
                           },
                           child: Container(
                             decoration: BoxDecoration(
-                              color: _selectedWeek == week ? Colors.orange : Colors.grey.shade200,
+                              color: _selectedWeek == week
+                                  ? Colors.orange
+                                  : Colors.grey.shade200,
                               borderRadius: BorderRadius.circular(8),
                             ),
                             child: Column(
@@ -179,7 +195,9 @@ class _InicioExampleState extends State<InicioExample> {
                                 Text(
                                   'Semana $week',
                                   style: TextStyle(
-                                    color: _selectedWeek == week ? Colors.white : Colors.black,
+                                    color: _selectedWeek == week
+                                        ? Colors.white
+                                        : Colors.black,
                                     fontWeight: FontWeight.bold,
                                   ),
                                 ),
@@ -187,7 +205,9 @@ class _InicioExampleState extends State<InicioExample> {
                                 Text(
                                   '${_weeklyTasks[week]?.length ?? 0} tareas',
                                   style: TextStyle(
-                                    color: _selectedWeek == week ? Colors.white : Colors.grey.shade700,
+                                    color: _selectedWeek == week
+                                        ? Colors.white
+                                        : Colors.grey.shade700,
                                     fontSize: 12,
                                   ),
                                 ),
@@ -237,14 +257,19 @@ class _InicioExampleState extends State<InicioExample> {
                             children: [
                               ..._weeklyTasks[_selectedWeek]!
                                   .take(3)
-                                  .map((task) => ListTile(
-                                        title: Text(task['descripcion']),
-                                        dense: true,
-                                        contentPadding: EdgeInsets.zero,
-                                      ))
+                                  .map(
+                                    (task) => ListTile(
+                                      title: Text(task['descripcion']),
+                                      dense: true,
+                                      contentPadding: EdgeInsets.zero,
+                                    ),
+                                  )
                                   .toList(),
                               if (_weeklyTasks[_selectedWeek]!.length > 3)
-                                const Text('... más tareas', style: TextStyle(color: Colors.grey)),
+                                const Text(
+                                  '... más tareas',
+                                  style: TextStyle(color: Colors.grey),
+                                ),
                             ],
                           ),
                   ],
@@ -298,7 +323,7 @@ class _WeekTaskScreenState extends State<WeekTaskScreen> {
     if (widget.username == null || _taskController.text.trim().isEmpty) return;
 
     setState(() => _isLoading = true);
-    
+
     try {
       final user = await DatabaseHelper.instance.getUser(widget.username!);
       if (user != null) {
@@ -307,33 +332,35 @@ class _WeekTaskScreenState extends State<WeekTaskScreen> {
           widget.weekNumber,
           _taskController.text.trim(),
         );
-        
+
         setState(() {
           _currentTasks.insert(0, {
             'id': newTaskId,
             'descripcion': _taskController.text.trim(),
           });
         });
-        
+
         _taskController.clear();
         widget.onTaskUpdated();
       }
     } catch (e) {
       debugPrint('Error al agregar tarea: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error al agregar tarea: ${e.toString()}'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error al agregar tarea: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     } finally {
-      setState(() => _isLoading = false);
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
   Future<void> _deleteTask(int taskId) async {
     setState(() => _isLoading = true);
-    
+
     try {
       await DatabaseHelper.instance.deleteTarea(taskId);
       setState(() {
@@ -342,14 +369,16 @@ class _WeekTaskScreenState extends State<WeekTaskScreen> {
       widget.onTaskUpdated();
     } catch (e) {
       debugPrint('Error al eliminar tarea: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error al eliminar tarea: ${e.toString()}'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error al eliminar tarea: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     } finally {
-      setState(() => _isLoading = false);
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
@@ -371,6 +400,8 @@ class _WeekTaskScreenState extends State<WeekTaskScreen> {
                   controller: _taskController,
                   decoration: InputDecoration(
                     labelText: 'Nueva tarea',
+                    filled: true,
+                    fillColor: Colors.white.withOpacity(0.7),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
@@ -384,8 +415,25 @@ class _WeekTaskScreenState extends State<WeekTaskScreen> {
                 const SizedBox(height: 20),
                 Expanded(
                   child: _currentTasks.isEmpty
-                      ? const Center(
-                          child: Text('No hay tareas para esta semana'),
+                      ? Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                Icons.assignment,
+                                size: 50,
+                                color: Colors.grey.withOpacity(0.5),
+                              ),
+                              const SizedBox(height: 16),
+                              Text(
+                                'No hay tareas esta semana',
+                                style: TextStyle(
+                                  color: Colors.grey.shade600,
+                                  fontSize: 16,
+                                ),
+                              ),
+                            ],
+                          ),
                         )
                       : ListView.builder(
                           itemCount: _currentTasks.length,
@@ -394,13 +442,17 @@ class _WeekTaskScreenState extends State<WeekTaskScreen> {
                             return Card(
                               margin: const EdgeInsets.only(bottom: 8),
                               elevation: 2,
+                              color: Colors.white.withOpacity(0.85),
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(10),
                               ),
                               child: ListTile(
                                 title: Text(task['descripcion']),
                                 trailing: IconButton(
-                                  icon: const Icon(Icons.delete, color: Colors.red),
+                                  icon: const Icon(
+                                    Icons.delete,
+                                    color: Colors.red,
+                                  ),
                                   onPressed: _isLoading
                                       ? null
                                       : () => _deleteTask(task['id']),
@@ -413,18 +465,9 @@ class _WeekTaskScreenState extends State<WeekTaskScreen> {
               ],
             ),
           ),
-          if (_isLoading)
-            const Center(
-              child: CircularProgressIndicator(),
-            ),
+          if (_isLoading) const Center(child: CircularProgressIndicator()),
         ],
       ),
     );
-  }
-
-  @override
-  void dispose() {
-    _taskController.dispose();
-    super.dispose();
   }
 }

@@ -29,7 +29,7 @@ class _PerfilExampleState extends State<PerfilExample> {
     _nombreController = TextEditingController();
     _emailController = TextEditingController();
     _descripcionController = TextEditingController(
-      text: 'Estudiante de Ingeniería de Software en la Unimet',
+      text: 'Ej: Estudiante De la Unimet ',
     );
     _loadUserData();
   }

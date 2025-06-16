@@ -19,7 +19,7 @@ class DatabaseHelper {
 
     return await openDatabase(
       path,
-      version: 4, // Incrementamos la versión para la nueva estructura
+      version: 4,
       onCreate: _createDB,
       onUpgrade: _upgradeDB,
     );
@@ -86,7 +86,6 @@ class DatabaseHelper {
       await db.execute("ALTER TABLE users ADD COLUMN descripcion TEXT");
     }
     if (oldVersion < 4) {
-      // Migración para agregar trimestres
       await db.execute('''
         CREATE TABLE trimestres (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -98,7 +97,6 @@ class DatabaseHelper {
         )
       ''');
 
-      // Migrar las materias existentes al nuevo sistema
       await db.execute('''
         ALTER TABLE materias RENAME TO materias_old
       ''');
@@ -112,7 +110,6 @@ class DatabaseHelper {
         )
       ''');
 
-      // Crear un trimestre por defecto para las materias existentes
       final userIds = await db.query('users', columns: ['id']);
       for (var user in userIds) {
         final trimestreId = await db.insert('trimestres', {
@@ -122,7 +119,6 @@ class DatabaseHelper {
           'fecha_fin': DateTime.now().add(Duration(days: 90)).toIso8601String(),
         });
 
-        // Migrar las materias al nuevo trimestre
         final materias = await db.query(
           'materias_old',
           where: 'user_id = ?',
@@ -141,59 +137,10 @@ class DatabaseHelper {
   }
 
   Future _createTables(Database db) async {
-    await db.execute('''
-      CREATE TABLE users (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        username TEXT UNIQUE NOT NULL,
-        email TEXT UNIQUE NOT NULL,
-        password TEXT NOT NULL,
-        descripcion TEXT
-      )
-    ''');
-
-    await db.execute('''
-      CREATE TABLE trimestres (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        user_id INTEGER NOT NULL,
-        nombre TEXT NOT NULL,
-        fecha_inicio TEXT,
-        fecha_fin TEXT,
-        FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
-      )
-    ''');
-
-    await db.execute('''
-      CREATE TABLE materias (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        trimestre_id INTEGER NOT NULL,
-        nombre TEXT NOT NULL,
-        FOREIGN KEY (trimestre_id) REFERENCES trimestres (id) ON DELETE CASCADE
-      )
-    ''');
-
-    await db.execute('''
-      CREATE TABLE evaluaciones (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        materia_id INTEGER NOT NULL,
-        nombre TEXT NOT NULL,
-        porcentaje REAL NOT NULL,
-        nota REAL NOT NULL,
-        FOREIGN KEY (materia_id) REFERENCES materias (id) ON DELETE CASCADE
-      )
-    ''');
-
-    await db.execute('''
-      CREATE TABLE tareas (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        user_id INTEGER NOT NULL,
-        semana INTEGER NOT NULL,
-        descripcion TEXT NOT NULL,
-        FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
-      )
-    ''');
+    await _createDB(db, 1);
   }
 
-  // Métodos para usuarios (mantener los existentes)
+  // Métodos para usuarios
   Future<int> createUser(String username, String email, String password) async {
     final db = await instance.database;
     return await db.insert('users', {
@@ -244,7 +191,7 @@ class DatabaseHelper {
     return await db.delete('trimestres', where: 'id = ?', whereArgs: [id]);
   }
 
-  // Métodos para materias (actualizados para usar trimestres)
+  // Métodos para materias
   Future<List<Map<String, dynamic>>> getMateriasPorTrimestre(
     int trimestreId,
   ) async {
@@ -269,7 +216,7 @@ class DatabaseHelper {
     return await db.delete('materias', where: 'id = ?', whereArgs: [id]);
   }
 
-  // Métodos para evaluaciones (mantener los existentes)
+  // Métodos para evaluaciones
   Future<int> insertEvaluacion(
     int materiaId,
     String nombre,
@@ -301,7 +248,7 @@ class DatabaseHelper {
     return await db.delete('evaluaciones', where: 'id = ?', whereArgs: [id]);
   }
 
-  // Métodos para tareas (mantener los existentes)
+  // Métodos para tareas
   Future<int> insertTarea(int userId, int semana, String descripcion) async {
     final db = await database;
     return await db.insert('tareas', {

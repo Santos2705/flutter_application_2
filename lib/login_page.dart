@@ -45,7 +45,7 @@ class _LoginPageState extends State<LoginPage> {
       );
     } catch (e) {
       setState(() {
-        _errorMessage = e.toString();
+        _errorMessage = e.toString().replaceAll('Exception: ', '');
       });
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -61,12 +61,14 @@ class _LoginPageState extends State<LoginPage> {
     if (result != null && result is Map) {
       _usernameController.text = result['username'] ?? '';
       _passwordController.text = result['password'] ?? '';
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Registro exitoso. Por favor inicie sesión'),
-          backgroundColor: Colors.green,
-        ),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Registro exitoso. Por favor inicie sesión'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
     }
   }
 
@@ -191,9 +193,7 @@ class _LoginPageState extends State<LoginPage> {
                         ),
                       ),
                       child: _isLoading
-                          ? const CircularProgressIndicator(
-                              color: Color(0xFFFFFFFF),
-                            )
+                          ? const CircularProgressIndicator(color: Colors.white)
                           : const Text(
                               'INICIAR SESIÓN',
                               style: TextStyle(

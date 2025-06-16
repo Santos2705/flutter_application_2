@@ -212,7 +212,7 @@ class _NotacionesExampleState extends State<NotacionesExample> {
                 controller: _nuevoTrimestreController,
                 decoration: const InputDecoration(
                   labelText: 'Nuevo Trimestre',
-                  hintText: 'Ej: Trimestre 1 - 2023',
+                  hintText: 'Ej: Trimestre 1 - 2022',
                   border: OutlineInputBorder(),
                 ),
               ),
