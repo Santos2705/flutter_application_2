@@ -55,6 +55,28 @@ class _InicioExampleState extends State<InicioExample> {
     return 12;
   }
 
+  Set<DateTime> _getTaskDates() {
+    final Set<DateTime> dates = {};
+    for (var weekTasks in _weeklyTasks.values) {
+      for (var task in weekTasks) {
+        if (task['fecha'] != null) {
+          dates.add(DateTime.parse(task['fecha']));
+        }
+      }
+    }
+    return dates;
+  }
+
+  List<Map<String, dynamic>> _getTasksForDay(DateTime day) {
+    if (widget.username == null) return [];
+    
+    return _weeklyTasks.values
+        .expand((weekTasks) => weekTasks)
+        .where((task) => task['fecha'] != null && 
+            isSameDay(DateTime.parse(task['fecha']), day))
+        .toList();
+  }
+
   @override
   void initState() {
     super.initState();
@@ -252,13 +274,15 @@ class _InicioExampleState extends State<InicioExample> {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
+    final taskDates = _getTaskDates();
+
     return Scaffold(
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // 1. Selector de semana (arriba del todo)
+            // 1. Selector de semana
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -372,7 +396,7 @@ class _InicioExampleState extends State<InicioExample> {
             ),
             const SizedBox(height: 20),
 
-            // 2. Tareas de la semana
+            // 2. Lista de tareas
             Card(
               elevation: 3,
               shape: RoundedRectangleBorder(
@@ -459,7 +483,7 @@ class _InicioExampleState extends State<InicioExample> {
             ),
             const SizedBox(height: 20),
 
-            // 3. Calendario (abajo)
+            // 3. Calendario con tareas integradas
             Card(
               elevation: 3,
               shape: RoundedRectangleBorder(
@@ -467,52 +491,82 @@ class _InicioExampleState extends State<InicioExample> {
               ),
               child: Padding(
                 padding: const EdgeInsets.all(12.0),
-                child: TableCalendar(
-                  firstDay: DateTime(2025, 1, 1),
-                  lastDay: DateTime(2025, 12, 31),
-                  focusedDay: _focusedDay,
-                  selectedDayPredicate: (day) => isSameDay(_selectedDay, day),
-                  onDaySelected: (selectedDay, focusedDay) {
-                    setState(() {
-                      _selectedDay = selectedDay;
-                      _focusedDay = focusedDay;
-                      final newWeek = _getAcademicWeek(selectedDay);
-                      if (newWeek != _selectedWeek) {
-                        _selectedWeek = newWeek;
-                        widget.onWeekChanged(newWeek);
-                      }
-                    });
-                  },
-                  calendarStyle: CalendarStyle(
-                    selectedDecoration: BoxDecoration(
-                      color: Colors.orange,
-                      shape: BoxShape.circle,
+                child: Column(
+                  children: [
+                    TableCalendar(
+                      firstDay: DateTime(2025, 1, 1),
+                      lastDay: DateTime(2025, 12, 31),
+                      focusedDay: _focusedDay,
+                      selectedDayPredicate: (day) => isSameDay(_selectedDay, day),
+                      onDaySelected: (selectedDay, focusedDay) {
+                        setState(() {
+                          _selectedDay = selectedDay;
+                          _focusedDay = focusedDay;
+                          final newWeek = _getAcademicWeek(selectedDay);
+                          if (newWeek != _selectedWeek) {
+                            _selectedWeek = newWeek;
+                            widget.onWeekChanged(newWeek);
+                          }
+                        });
+                      },
+                      calendarBuilders: CalendarBuilders(
+                        markerBuilder: (context, date, events) {
+                          if (taskDates.contains(date)) {
+                            return Positioned(
+                              right: 1,
+                              bottom: 1,
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  color: Colors.orange,
+                                  shape: BoxShape.circle,
+                                ),
+                                width: 8,
+                                height: 8,
+                              ),
+                            );
+                          }
+                          return null;
+                        },
+                      ),
+                      calendarStyle: CalendarStyle(
+                        selectedDecoration: BoxDecoration(
+                          color: Colors.orange,
+                          shape: BoxShape.circle,
+                        ),
+                        todayDecoration: BoxDecoration(
+                          color: Colors.orange.withOpacity(0.5),
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                      headerStyle: HeaderStyle(
+                        formatButtonVisible: false,
+                        titleCentered: true,
+                        leftChevronIcon: Icon(
+                          Icons.chevron_left,
+                          color: Colors.orange,
+                        ),
+                        rightChevronIcon: Icon(
+                          Icons.chevron_right,
+                          color: Colors.orange,
+                        ),
+                        titleTextStyle: TextStyle(
+                          color: Colors.orange,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      daysOfWeekStyle: DaysOfWeekStyle(
+                        weekdayStyle: TextStyle(color: Colors.orange),
+                        weekendStyle: TextStyle(color: Colors.orange),
+                      ),
                     ),
-                    todayDecoration: BoxDecoration(
-                      color: Colors.orange.withOpacity(0.5),
-                      shape: BoxShape.circle,
-                    ),
-                  ),
-                  headerStyle: HeaderStyle(
-                    formatButtonVisible: false,
-                    titleCentered: true,
-                    leftChevronIcon: Icon(
-                      Icons.chevron_left,
-                      color: Colors.orange,
-                    ),
-                    rightChevronIcon: Icon(
-                      Icons.chevron_right,
-                      color: Colors.orange,
-                    ),
-                    titleTextStyle: TextStyle(
-                      color: Colors.orange,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  daysOfWeekStyle: DaysOfWeekStyle(
-                    weekdayStyle: TextStyle(color: Colors.orange),
-                    weekendStyle: TextStyle(color: Colors.orange),
-                  ),
+                    if (_selectedDay != null)
+                      ..._getTasksForDay(_selectedDay!).map((task) => ListTile(
+                        title: Text(task['descripcion']),
+                        subtitle: Text(
+                          'Semana ${task['semana']} • ${task['fecha'] != null ? DateFormat('dd/MM/yyyy').format(DateTime.parse(task['fecha'])) : 'Sin fecha'}',
+                        ),
+                      )),
+                  ],
                 ),
               ),
             ),
