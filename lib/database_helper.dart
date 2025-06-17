@@ -285,6 +285,7 @@ class DatabaseHelper {
       'user_id': userId,
       'semana': semana,
       'descripcion': descripcion,
+      "fecha": fecha?.toIso8601String(),
     });
   }
 

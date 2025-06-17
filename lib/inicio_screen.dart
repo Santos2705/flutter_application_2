@@ -71,6 +71,7 @@ class _InicioExampleState extends State<InicioExample> {
     try {
       final user = await DatabaseHelper.instance.getUser(widget.username!);
       if (user != null) {
+        String? fechaString = _taskDate?.toIso8601String();
         await DatabaseHelper.instance.insertTarea(
           user['id'],
           _selectedWeek,
