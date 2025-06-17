@@ -206,10 +206,22 @@ class _NotacionesExampleState extends State<NotacionesExample> {
               tooltip: 'Borrar todos los trimestres',
             ),
           if (_trimestreSeleccionado != null)
-            IconButton(
-              icon: Icon(Icons.calculate),
-              onPressed: _calcularPromedioTrimestre,
-              tooltip: 'Calcular promedio del trimestre',
+            Padding(
+              padding: const EdgeInsets.only(right: 8.0),
+              child: ElevatedButton.icon(
+                icon: Icon(Icons.calculate, size: 20),
+                label: Text('PROMEDIO'),
+                onPressed: _calcularPromedioTrimestre,
+                style: ElevatedButton.styleFrom(
+                  foregroundColor: Colors.white,
+                  backgroundColor: Colors.orange[800],
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                ),
+              ),
+              
             ),
         ],
       ),
