@@ -160,7 +160,8 @@ class DatabaseHelper {
       );
 
       for (var eval in evaluaciones) {
-        sumaPonderada += (eval['nota'] as double) * (eval['porcentaje'] as double);
+        sumaPonderada +=
+            (eval['nota'] as double) * (eval['porcentaje'] as double);
         totalPorcentaje += eval['porcentaje'] as double;
       }
     }
@@ -273,7 +274,12 @@ class DatabaseHelper {
     return await db.delete('evaluaciones', where: 'id = ?', whereArgs: [id]);
   }
 
-  Future<int> insertTarea(int userId, int semana, String descripcion) async {
+  Future<int> insertTarea(
+    int userId,
+    int semana,
+    String descripcion, {
+    DateTime? fecha,
+  }) async {
     final db = await database;
     return await db.insert('tareas', {
       'user_id': userId,

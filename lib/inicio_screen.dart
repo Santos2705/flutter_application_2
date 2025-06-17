@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
+import 'package:table_calendar/table_calendar.dart';
 import 'database_helper.dart';
 
 class InicioExample extends StatefulWidget {
@@ -22,12 +24,16 @@ class _InicioExampleState extends State<InicioExample> {
   late int _selectedWeek;
   final Map<int, List<Map<String, dynamic>>> _weeklyTasks = {};
   bool _isLoading = true;
-  final GlobalKey<_WeekTaskScreenState> _weekTaskScreenKey = GlobalKey();
+  DateTime _focusedDay = DateTime.now();
+  DateTime? _selectedDay;
+  final TextEditingController _taskController = TextEditingController();
+  DateTime? _taskDate;
 
   @override
   void initState() {
     super.initState();
     _selectedWeek = widget.initialWeek;
+    _selectedDay = DateTime.now();
     _loadWeeklyTasks();
   }
 
@@ -57,48 +63,124 @@ class _InicioExampleState extends State<InicioExample> {
     }
   }
 
-  Future<void> _navigateToWeekScreen(int week) async {
-    if (widget.username == null) return;
+  Future<void> _addTask() async {
+    if (widget.username == null || _taskController.text.trim().isEmpty) return;
 
-    final previousWeek = _selectedWeek;
-    widget.onWeekChanged(week);
-
-    await Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => WeekTaskScreen(
-          key: _weekTaskScreenKey,
-          weekNumber: week,
-          username: widget.username,
-          tasks: List.from(_weeklyTasks[week] ?? []),
-          onTaskUpdated: () => _loadWeekTasks(week),
-        ),
-      ),
-    );
-
-    if (mounted) {
-      setState(() => _selectedWeek = previousWeek);
-      widget.onWeekChanged(previousWeek);
-    }
-  }
-
-  Future<void> _loadWeekTasks(int week) async {
-    if (widget.username == null) return;
+    setState(() => _isLoading = true);
 
     try {
       final user = await DatabaseHelper.instance.getUser(widget.username!);
       if (user != null) {
-        final updatedTasks = await DatabaseHelper.instance.getTareasPorSemana(
+        await DatabaseHelper.instance.insertTarea(
           user['id'],
-          week,
+          _selectedWeek,
+          _taskController.text.trim(),
+          fecha: _taskDate,
         );
-        if (mounted) {
-          setState(() => _weeklyTasks[week] = updatedTasks);
-        }
+
+        _taskController.clear();
+        _taskDate = null;
+        await _loadWeeklyTasks();
       }
     } catch (e) {
-      debugPrint('Error al actualizar tareas: $e');
+      debugPrint('Error al agregar tarea: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error al agregar tarea: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
     }
+  }
+
+  Future<void> _selectTaskDate(BuildContext context) async {
+    final DateTime? picked = await showDatePicker(
+      context: context,
+      initialDate: _taskDate ?? DateTime.now(),
+      firstDate: DateTime(2000),
+      lastDate: DateTime(2100),
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: const ColorScheme.light(
+              primary: Colors.orange,
+              onPrimary: Colors.white,
+              surface: Colors.white,
+              onSurface: Colors.black,
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+
+    if (picked != null) {
+      setState(() {
+        _taskDate = picked;
+      });
+    }
+  }
+
+  void _showAddTaskDialog() {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Agregar Tarea'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: _taskController,
+                  decoration: const InputDecoration(
+                    labelText: 'Descripción de la tarea',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        _taskDate == null
+                            ? 'Sin fecha específica'
+                            : 'Fecha: ${DateFormat('dd/MM/yyyy').format(_taskDate!)}',
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(
+                        Icons.calendar_today,
+                        color: Colors.orange,
+                      ),
+                      onPressed: () => _selectTaskDate(context),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancelar'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                _addTask();
+                Navigator.pop(context);
+              },
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.orange),
+              child: const Text('Agregar'),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   @override
@@ -108,11 +190,12 @@ class _InicioExampleState extends State<InicioExample> {
     }
 
     return Scaffold(
-      body: Padding(
+      body: SingleChildScrollView(
         padding: const EdgeInsets.all(16.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // Selector de semana
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -180,7 +263,7 @@ class _InicioExampleState extends State<InicioExample> {
                               _selectedWeek = week;
                               _showWeekSelector = false;
                             });
-                            _navigateToWeekScreen(week);
+                            widget.onWeekChanged(week);
                           },
                           child: Container(
                             decoration: BoxDecoration(
@@ -221,6 +304,62 @@ class _InicioExampleState extends State<InicioExample> {
               ],
             ),
             const SizedBox(height: 20),
+
+            // Calendario
+            Card(
+              elevation: 3,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(12.0),
+                child: TableCalendar(
+                  firstDay: DateTime.utc(2020, 1, 1),
+                  lastDay: DateTime.utc(2030, 12, 31),
+                  focusedDay: _focusedDay,
+                  selectedDayPredicate: (day) => isSameDay(_selectedDay, day),
+                  onDaySelected: (selectedDay, focusedDay) {
+                    setState(() {
+                      _selectedDay = selectedDay;
+                      _focusedDay = focusedDay;
+                    });
+                  },
+                  calendarStyle: CalendarStyle(
+                    selectedDecoration: BoxDecoration(
+                      color: Colors.orange,
+                      shape: BoxShape.circle,
+                    ),
+                    todayDecoration: BoxDecoration(
+                      color: Colors.orange.withOpacity(0.5),
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                  headerStyle: HeaderStyle(
+                    formatButtonVisible: false,
+                    titleCentered: true,
+                    leftChevronIcon: Icon(
+                      Icons.chevron_left,
+                      color: Colors.orange,
+                    ),
+                    rightChevronIcon: Icon(
+                      Icons.chevron_right,
+                      color: Colors.orange,
+                    ),
+                    titleTextStyle: TextStyle(
+                      color: Colors.orange,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  daysOfWeekStyle: DaysOfWeekStyle(
+                    weekdayStyle: TextStyle(color: Colors.orange),
+                    weekendStyle: TextStyle(color: Colors.orange),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
+
+            // Tareas por semana
             Card(
               elevation: 3,
               shape: RoundedRectangleBorder(
@@ -241,36 +380,49 @@ class _InicioExampleState extends State<InicioExample> {
                             color: Colors.orange,
                           ),
                         ),
-                        TextButton(
-                          onPressed: () => _navigateToWeekScreen(_selectedWeek),
-                          child: const Text(
-                            'Ver todas',
-                            style: TextStyle(color: Colors.orange),
-                          ),
+                        Row(
+                          children: [
+                            IconButton(
+                              icon: const Icon(Icons.add, color: Colors.orange),
+                              onPressed: _showAddTaskDialog,
+                            ),
+                            TextButton(
+                              onPressed: () {
+                                // Aquí puedes implementar la lógica para "Ver todas"
+                                // Por ejemplo, mostrar un diálogo con todas las tareas
+                                _showAllTasksDialog();
+                              },
+                              child: const Text(
+                                'Ver todas',
+                                style: TextStyle(color: Colors.orange),
+                              ),
+                            ),
+                          ],
                         ),
                       ],
                     ),
                     const SizedBox(height: 8),
                     _weeklyTasks[_selectedWeek]?.isEmpty ?? true
-                        ? const Text('No hay tareas esta semana')
+                        ? const Padding(
+                            padding: EdgeInsets.symmetric(vertical: 8.0),
+                            child: Text('No hay tareas esta semana'),
+                          )
                         : Column(
-                            children: [
-                              ..._weeklyTasks[_selectedWeek]!
-                                  .take(3)
-                                  .map(
-                                    (task) => ListTile(
-                                      title: Text(task['descripcion']),
-                                      dense: true,
-                                      contentPadding: EdgeInsets.zero,
-                                    ),
-                                  )
-                                  .toList(),
-                              if (_weeklyTasks[_selectedWeek]!.length > 3)
-                                const Text(
-                                  '... más tareas',
-                                  style: TextStyle(color: Colors.grey),
-                                ),
-                            ],
+                            children: _weeklyTasks[_selectedWeek]!
+                                .take(3) // Muestra solo 3 tareas inicialmente
+                                .map(
+                                  (task) => ListTile(
+                                    title: Text(task['descripcion']),
+                                    subtitle: task['fecha'] != null
+                                        ? Text(
+                                            'Fecha: ${DateFormat('dd/MM/yyyy').format(DateTime.parse(task['fecha']))}',
+                                          )
+                                        : null,
+                                    dense: true,
+                                    contentPadding: EdgeInsets.zero,
+                                  ),
+                                )
+                                .toList(),
                           ),
                   ],
                 ),
@@ -279,195 +431,41 @@ class _InicioExampleState extends State<InicioExample> {
           ],
         ),
       ),
-      floatingActionButton: widget.username != null
-          ? FloatingActionButton(
-              onPressed: () => _navigateToWeekScreen(_selectedWeek),
-              backgroundColor: Colors.orange,
-              child: const Icon(Icons.add, color: Colors.white),
-            )
-          : null,
     );
   }
-}
 
-class WeekTaskScreen extends StatefulWidget {
-  final int weekNumber;
-  final String? username;
-  final List<Map<String, dynamic>> tasks;
-  final VoidCallback onTaskUpdated;
-
-  const WeekTaskScreen({
-    super.key,
-    required this.weekNumber,
-    required this.username,
-    required this.tasks,
-    required this.onTaskUpdated,
-  });
-
-  @override
-  State<WeekTaskScreen> createState() => _WeekTaskScreenState();
-}
-
-class _WeekTaskScreenState extends State<WeekTaskScreen> {
-  final TextEditingController _taskController = TextEditingController();
-  bool _isLoading = false;
-  late List<Map<String, dynamic>> _currentTasks;
-
-  @override
-  void initState() {
-    super.initState();
-    _currentTasks = List.from(widget.tasks);
-  }
-
-  Future<void> _addTask() async {
-    if (widget.username == null || _taskController.text.trim().isEmpty) return;
-
-    setState(() => _isLoading = true);
-
-    try {
-      final user = await DatabaseHelper.instance.getUser(widget.username!);
-      if (user != null) {
-        final newTaskId = await DatabaseHelper.instance.insertTarea(
-          user['id'],
-          widget.weekNumber,
-          _taskController.text.trim(),
-        );
-
-        setState(() {
-          _currentTasks.insert(0, {
-            'id': newTaskId,
-            'descripcion': _taskController.text.trim(),
-          });
-        });
-
-        _taskController.clear();
-        widget.onTaskUpdated();
-      }
-    } catch (e) {
-      debugPrint('Error al agregar tarea: $e');
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error al agregar tarea: ${e.toString()}'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    } finally {
-      if (mounted) setState(() => _isLoading = false);
-    }
-  }
-
-  Future<void> _deleteTask(int taskId) async {
-    setState(() => _isLoading = true);
-
-    try {
-      await DatabaseHelper.instance.deleteTarea(taskId);
-      setState(() {
-        _currentTasks.removeWhere((task) => task['id'] == taskId);
-      });
-      widget.onTaskUpdated();
-    } catch (e) {
-      debugPrint('Error al eliminar tarea: $e');
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error al eliminar tarea: ${e.toString()}'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    } finally {
-      if (mounted) setState(() => _isLoading = false);
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text('Tareas Semana ${widget.weekNumber}'),
-        backgroundColor: Colors.orange,
-        foregroundColor: Colors.white,
-      ),
-      body: Stack(
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              children: [
-                TextField(
-                  controller: _taskController,
-                  decoration: InputDecoration(
-                    labelText: 'Nueva tarea',
-                    filled: true,
-                    fillColor: Colors.white.withOpacity(0.7),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    suffixIcon: IconButton(
-                      icon: const Icon(Icons.add, color: Colors.orange),
-                      onPressed: _isLoading ? null : _addTask,
-                    ),
-                  ),
-                  onSubmitted: (_) => _addTask(),
-                ),
-                const SizedBox(height: 20),
-                Expanded(
-                  child: _currentTasks.isEmpty
-                      ? Center(
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(
-                                Icons.assignment,
-                                size: 50,
-                                color: Colors.grey.withOpacity(0.5),
-                              ),
-                              const SizedBox(height: 16),
-                              Text(
-                                'No hay tareas esta semana',
-                                style: TextStyle(
-                                  color: Colors.grey.shade600,
-                                  fontSize: 16,
-                                ),
-                              ),
-                            ],
-                          ),
+  void _showAllTasksDialog() {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Text('Todas las tareas - Semana $_selectedWeek'),
+          content: SizedBox(
+            width: double.maxFinite,
+            child: ListView.builder(
+              shrinkWrap: true,
+              itemCount: _weeklyTasks[_selectedWeek]?.length ?? 0,
+              itemBuilder: (context, index) {
+                final task = _weeklyTasks[_selectedWeek]![index];
+                return ListTile(
+                  title: Text(task['descripcion']),
+                  subtitle: task['fecha'] != null
+                      ? Text(
+                          'Fecha: ${DateFormat('dd/MM/yyyy').format(DateTime.parse(task['fecha']))}',
                         )
-                      : ListView.builder(
-                          itemCount: _currentTasks.length,
-                          itemBuilder: (context, index) {
-                            final task = _currentTasks[index];
-                            return Card(
-                              margin: const EdgeInsets.only(bottom: 8),
-                              elevation: 2,
-                              color: Colors.white.withOpacity(0.85),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                              child: ListTile(
-                                title: Text(task['descripcion']),
-                                trailing: IconButton(
-                                  icon: const Icon(
-                                    Icons.delete,
-                                    color: Colors.red,
-                                  ),
-                                  onPressed: _isLoading
-                                      ? null
-                                      : () => _deleteTask(task['id']),
-                                ),
-                              ),
-                            );
-                          },
-                        ),
-                ),
-              ],
+                      : null,
+                );
+              },
             ),
           ),
-          if (_isLoading) const Center(child: CircularProgressIndicator()),
-        ],
-      ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cerrar'),
+            ),
+          ],
+        );
+      },
     );
   }
 }
