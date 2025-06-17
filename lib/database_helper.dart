@@ -19,7 +19,7 @@ class DatabaseHelper {
 
     return await openDatabase(
       path,
-      version: 4,
+      version: 5,
       onCreate: _createDB,
       onUpgrade: _upgradeDB,
     );
@@ -73,6 +73,7 @@ class DatabaseHelper {
         user_id INTEGER NOT NULL,
         semana INTEGER NOT NULL,
         descripcion TEXT NOT NULL,
+        fecha TEXT,
         FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
       )
     ''');
@@ -134,42 +135,15 @@ class DatabaseHelper {
 
       await db.execute('DROP TABLE materias_old');
     }
+    if (oldVersion < 5) {
+      await db.execute('ALTER TABLE tareas ADD COLUMN fecha TEXT');
+    }
   }
 
   Future _createTables(Database db) async {
     await _createDB(db, 1);
   }
 
-  // Método para calcular el promedio del trimestre
-  Future<double> calcularPromedioTrimestre(int trimestreId) async {
-    final db = await database;
-    final materias = await db.query(
-      'materias',
-      where: 'trimestre_id = ?',
-      whereArgs: [trimestreId],
-    );
-
-    double sumaPonderada = 0;
-    double totalPorcentaje = 0;
-
-    for (var materia in materias) {
-      final evaluaciones = await db.query(
-        'evaluaciones',
-        where: 'materia_id = ?',
-        whereArgs: [materia['id']],
-      );
-
-      for (var eval in evaluaciones) {
-        sumaPonderada +=
-            (eval['nota'] as double) * (eval['porcentaje'] as double);
-        totalPorcentaje += eval['porcentaje'] as double;
-      }
-    }
-
-    return totalPorcentaje > 0 ? sumaPonderada / totalPorcentaje : 0;
-  }
-
-  // Resto de métodos existentes...
   Future<int> createUser(String username, String email, String password) async {
     final db = await instance.database;
     return await db.insert('users', {
@@ -219,9 +193,7 @@ class DatabaseHelper {
     return await db.delete('trimestres', where: 'id = ?', whereArgs: [id]);
   }
 
-  Future<List<Map<String, dynamic>>> getMateriasPorTrimestre(
-    int trimestreId,
-  ) async {
+  Future<List<Map<String, dynamic>>> getMateriasPorTrimestre(int trimestreId) async {
     final db = await database;
     return await db.query(
       'materias',
@@ -258,9 +230,7 @@ class DatabaseHelper {
     });
   }
 
-  Future<List<Map<String, dynamic>>> getEvaluacionesPorMateria(
-    int materiaId,
-  ) async {
+  Future<List<Map<String, dynamic>>> getEvaluacionesPorMateria(int materiaId) async {
     final db = await database;
     return await db.query(
       'evaluaciones',
@@ -285,14 +255,11 @@ class DatabaseHelper {
       'user_id': userId,
       'semana': semana,
       'descripcion': descripcion,
-      "fecha": fecha?.toIso8601String(),
+      'fecha': fecha?.toIso8601String(),
     });
   }
 
-  Future<List<Map<String, dynamic>>> getTareasPorSemana(
-    int userId,
-    int semana,
-  ) async {
+  Future<List<Map<String, dynamic>>> getTareasPorSemana(int userId, int semana) async {
     final db = await database;
     return await db.query(
       'tareas',
@@ -304,6 +271,33 @@ class DatabaseHelper {
   Future<int> deleteTarea(int id) async {
     final db = await database;
     return await db.delete('tareas', where: 'id = ?', whereArgs: [id]);
+  }
+
+  Future<double> calcularPromedioTrimestre(int trimestreId) async {
+    final db = await database;
+    final materias = await db.query(
+      'materias',
+      where: 'trimestre_id = ?',
+      whereArgs: [trimestreId],
+    );
+
+    double sumaPonderada = 0;
+    double totalPorcentaje = 0;
+
+    for (var materia in materias) {
+      final evaluaciones = await db.query(
+        'evaluaciones',
+        where: 'materia_id = ?',
+        whereArgs: [materia['id']],
+      );
+
+      for (var eval in evaluaciones) {
+        sumaPonderada += (eval['nota'] as double) * (eval['porcentaje'] as double);
+        totalPorcentaje += eval['porcentaje'] as double;
+      }
+    }
+
+    return totalPorcentaje > 0 ? sumaPonderada / totalPorcentaje : 0;
   }
 
   Future<void> close() async {
