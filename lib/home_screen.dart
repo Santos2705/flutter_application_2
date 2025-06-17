@@ -19,13 +19,26 @@ class _HomeScreenState extends State<HomeScreen> {
   late bool _isLoggedIn;
   late String? _username;
   late List<Widget> _screens;
-  int _selectedWeek = 1;
+  late int _selectedWeek;
+
+  // Función para determinar la semana académica actual
+  int _getCurrentAcademicWeek() {
+    final now = DateTime.now();
+    // Lógica simplificada basada en las fechas definidas en InicioExample
+    if (now.isBefore(DateTime(2025, 4, 20))) return 1;
+    if (now.isAfter(DateTime(2025, 7, 12))) return 12;
+    
+    final startDate = DateTime(2025, 4, 20);
+    final daysDifference = now.difference(startDate).inDays;
+    return (daysDifference ~/ 7) + 1;
+  }
 
   @override
   void initState() {
     super.initState();
     _isLoggedIn = widget.username != null;
     _username = widget.username;
+    _selectedWeek = _getCurrentAcademicWeek();
     _initializeScreens();
   }
 
@@ -36,7 +49,6 @@ class _HomeScreenState extends State<HomeScreen> {
           username: _username,
           onWeekChanged: (newWeek) {
             setState(() => _selectedWeek = newWeek);
-            return null;
           },
           initialWeek: _selectedWeek,
         ),
@@ -80,6 +92,7 @@ class _HomeScreenState extends State<HomeScreen> {
     setState(() {
       _isLoggedIn = isLoggedIn;
       _username = username;
+      _selectedWeek = _getCurrentAcademicWeek(); // Actualizar semana al iniciar sesión
       _initializeScreens();
     });
   }

@@ -29,11 +29,39 @@ class _InicioExampleState extends State<InicioExample> {
   final TextEditingController _taskController = TextEditingController();
   DateTime? _taskDate;
 
+  // Definición de las semanas académicas para 2025
+  static final Map<int, DateTimeRange> _academicWeeks = {
+    1: DateTimeRange(start: DateTime(2025, 4, 20), end: DateTime(2025, 4, 26)),
+    2: DateTimeRange(start: DateTime(2025, 4, 27), end: DateTime(2025, 5, 3)),
+    3: DateTimeRange(start: DateTime(2025, 5, 4), end: DateTime(2025, 5, 10)),
+    4: DateTimeRange(start: DateTime(2025, 5, 11), end: DateTime(2025, 5, 17)),
+    5: DateTimeRange(start: DateTime(2025, 5, 18), end: DateTime(2025, 5, 24)),
+    6: DateTimeRange(start: DateTime(2025, 5, 25), end: DateTime(2025, 5, 31)),
+    7: DateTimeRange(start: DateTime(2025, 6, 1), end: DateTime(2025, 6, 7)),
+    8: DateTimeRange(start: DateTime(2025, 6, 8), end: DateTime(2025, 6, 14)),
+    9: DateTimeRange(start: DateTime(2025, 6, 15), end: DateTime(2025, 6, 21)),
+    10: DateTimeRange(start: DateTime(2025, 6, 22), end: DateTime(2025, 6, 28)),
+    11: DateTimeRange(start: DateTime(2025, 6, 29), end: DateTime(2025, 7, 5)),
+    12: DateTimeRange(start: DateTime(2025, 7, 6), end: DateTime(2025, 7, 12)),
+  };
+
+  int _getAcademicWeek(DateTime date) {
+    for (var entry in _academicWeeks.entries) {
+      if (!date.isBefore(entry.value.start) && !date.isAfter(entry.value.end)) {
+        return entry.key;
+      }
+    }
+    if (date.isBefore(_academicWeeks[1]!.start)) return 1;
+    return 12;
+  }
+
   @override
   void initState() {
     super.initState();
-    _selectedWeek = widget.initialWeek;
-    _selectedDay = DateTime.now();
+    final now = DateTime.now();
+    _selectedWeek = _getAcademicWeek(now);
+    _selectedDay = now;
+    _focusedDay = now;
     _loadWeeklyTasks();
   }
 
@@ -230,7 +258,7 @@ class _InicioExampleState extends State<InicioExample> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Selector de semana
+            // 1. Selector de semana (arriba del todo)
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -255,7 +283,7 @@ class _InicioExampleState extends State<InicioExample> {
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Text(
-                          'Semana $_selectedWeek',
+                          'Semana $_selectedWeek (${DateFormat('dd/MM').format(_academicWeeks[_selectedWeek]!.start)} - ${DateFormat('dd/MM').format(_academicWeeks[_selectedWeek]!.end)})',
                           style: const TextStyle(
                             color: Colors.orange,
                             fontWeight: FontWeight.bold,
@@ -286,6 +314,7 @@ class _InicioExampleState extends State<InicioExample> {
                       childAspectRatio: 1.5,
                       children: List.generate(12, (index) {
                         final week = index + 1;
+                        final weekRange = _academicWeeks[week]!;
                         return GestureDetector(
                           onTap: () {
                             setState(() {
@@ -315,12 +344,21 @@ class _InicioExampleState extends State<InicioExample> {
                                 ),
                                 const SizedBox(height: 4),
                                 Text(
+                                  '${DateFormat('dd/MM').format(weekRange.start)}-${DateFormat('dd/MM').format(weekRange.end)}',
+                                  style: TextStyle(
+                                    color: _selectedWeek == week
+                                        ? Colors.white
+                                        : Colors.grey.shade700,
+                                    fontSize: 10,
+                                  ),
+                                ),
+                                Text(
                                   '${_weeklyTasks[week]?.length ?? 0} tareas',
                                   style: TextStyle(
                                     color: _selectedWeek == week
                                         ? Colors.white
                                         : Colors.grey.shade700,
-                                    fontSize: 12,
+                                    fontSize: 10,
                                   ),
                                 ),
                               ],
@@ -334,7 +372,7 @@ class _InicioExampleState extends State<InicioExample> {
             ),
             const SizedBox(height: 20),
 
-            // Tareas por semana (ahora arriba)
+            // 2. Tareas de la semana
             Card(
               elevation: 3,
               shape: RoundedRectangleBorder(
@@ -421,7 +459,7 @@ class _InicioExampleState extends State<InicioExample> {
             ),
             const SizedBox(height: 20),
 
-            // Calendario (ahora abajo)
+            // 3. Calendario (abajo)
             Card(
               elevation: 3,
               shape: RoundedRectangleBorder(
@@ -430,14 +468,19 @@ class _InicioExampleState extends State<InicioExample> {
               child: Padding(
                 padding: const EdgeInsets.all(12.0),
                 child: TableCalendar(
-                  firstDay: DateTime.utc(2020, 1, 1),
-                  lastDay: DateTime.utc(2030, 12, 31),
+                  firstDay: DateTime(2025, 1, 1),
+                  lastDay: DateTime(2025, 12, 31),
                   focusedDay: _focusedDay,
                   selectedDayPredicate: (day) => isSameDay(_selectedDay, day),
                   onDaySelected: (selectedDay, focusedDay) {
                     setState(() {
                       _selectedDay = selectedDay;
                       _focusedDay = focusedDay;
+                      final newWeek = _getAcademicWeek(selectedDay);
+                      if (newWeek != _selectedWeek) {
+                        _selectedWeek = newWeek;
+                        widget.onWeekChanged(newWeek);
+                      }
                     });
                   },
                   calendarStyle: CalendarStyle(
