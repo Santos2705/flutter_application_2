@@ -16,6 +16,7 @@ class _NotacionesExampleState extends State<NotacionesExample> {
   final _nuevoTrimestreController = TextEditingController();
   bool _isLoading = true;
   int? _trimestreSeleccionado;
+  double _promedioTrimestre = 0;
 
   @override
   void initState() {
@@ -52,6 +53,21 @@ class _NotacionesExampleState extends State<NotacionesExample> {
       setState(() => _trimestres = trimestresDB);
     } catch (e) {
       debugPrint('Error al cargar trimestres: $e');
+    } finally {
+      setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _calcularPromedioTrimestre() async {
+    if (_trimestreSeleccionado == null) return;
+    
+    setState(() => _isLoading = true);
+    try {
+      final promedio = await DatabaseHelper.instance
+          .calcularPromedioTrimestre(_trimestreSeleccionado!);
+      setState(() => _promedioTrimestre = promedio);
+    } catch (e) {
+      debugPrint('Error al calcular promedio: $e');
     } finally {
       setState(() => _isLoading = false);
     }
@@ -189,6 +205,12 @@ class _NotacionesExampleState extends State<NotacionesExample> {
               },
               tooltip: 'Borrar todos los trimestres',
             ),
+          if (_trimestreSeleccionado != null)
+            IconButton(
+              icon: Icon(Icons.calculate),
+              onPressed: _calcularPromedioTrimestre,
+              tooltip: 'Calcular promedio del trimestre',
+            ),
         ],
       ),
       body: widget.username == null
@@ -202,13 +224,47 @@ class _NotacionesExampleState extends State<NotacionesExample> {
               padding: const EdgeInsets.all(16.0),
               child: _trimestreSeleccionado == null
                   ? _buildListaTrimestres()
-                  : MateriasDelTrimestre(
-                      trimestreId: _trimestreSeleccionado!,
-                      trimestreNombre: _trimestres.firstWhere(
-                        (t) => t['id'] == _trimestreSeleccionado,
-                      )['nombre'],
-                      username: widget.username,
-                      onMateriasUpdated: _loadTrimestres,
+                  : Column(
+                      children: [
+                        if (_promedioTrimestre > 0)
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 16.0),
+                            child: Card(
+                              color: Colors.orange[50],
+                              child: Padding(
+                                padding: const EdgeInsets.all(12.0),
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(Icons.star, color: Colors.orange),
+                                    SizedBox(width: 8),
+                                    Text(
+                                      'Promedio del trimestre: ${_promedioTrimestre.toStringAsFixed(2)}',
+                                      style: TextStyle(
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.orange[800],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                        Expanded(
+                          child: MateriasDelTrimestre(
+                            trimestreId: _trimestreSeleccionado!,
+                            trimestreNombre: _trimestres.firstWhere(
+                              (t) => t['id'] == _trimestreSeleccionado,
+                            )['nombre'],
+                            username: widget.username,
+                            onMateriasUpdated: () {
+                              _loadTrimestres();
+                              _calcularPromedioTrimestre();
+                            },
+                          ),
+                        ),
+                      ],
                     ),
             ),
     );
@@ -217,7 +273,6 @@ class _NotacionesExampleState extends State<NotacionesExample> {
   Widget _buildListaTrimestres() {
     return Column(
       children: [
-        // Campo para agregar nuevo trimestre
         Row(
           children: [
             Expanded(
@@ -247,8 +302,6 @@ class _NotacionesExampleState extends State<NotacionesExample> {
           ],
         ),
         const SizedBox(height: 20),
-
-        // Lista de trimestres
         Expanded(
           child: _trimestres.isEmpty
               ? Center(
@@ -295,6 +348,7 @@ class _NotacionesExampleState extends State<NotacionesExample> {
                         onTap: () {
                           setState(() {
                             _trimestreSeleccionado = trimestre['id'];
+                            _promedioTrimestre = 0;
                           });
                         },
                       ),
@@ -438,7 +492,6 @@ class _MateriasDelTrimestreState extends State<MateriasDelTrimestre> {
     final porcentajeText = _porcentajeControllers[materiaIndex].text;
     final notaText = _notaControllers[materiaIndex].text;
 
-    // Validar campos vacíos
     if (nombreEvaluacion.isEmpty ||
         porcentajeText.isEmpty ||
         notaText.isEmpty) {
@@ -451,7 +504,6 @@ class _MateriasDelTrimestreState extends State<MateriasDelTrimestre> {
       return;
     }
 
-    // Validar porcentaje
     final porcentaje = double.tryParse(porcentajeText) ?? 0.0;
     if (porcentaje <= 0 || porcentaje > 100) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -463,7 +515,6 @@ class _MateriasDelTrimestreState extends State<MateriasDelTrimestre> {
       return;
     }
 
-    // Validar nota
     final nota = double.tryParse(notaText) ?? 0.0;
     if (nota < 0 || nota > 20) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -621,7 +672,6 @@ class _MateriasDelTrimestreState extends State<MateriasDelTrimestre> {
             ),
           ),
         ),
-        // Campo para agregar nueva materia
         Row(
           children: [
             Expanded(
@@ -650,8 +700,6 @@ class _MateriasDelTrimestreState extends State<MateriasDelTrimestre> {
           ],
         ),
         const SizedBox(height: 20),
-
-        // Lista de materias
         Expanded(
           child: _materias.isEmpty
               ? Center(
@@ -675,7 +723,6 @@ class _MateriasDelTrimestreState extends State<MateriasDelTrimestre> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            // Encabezado de materia con botón de eliminar
                             Row(
                               children: [
                                 Text(
@@ -698,8 +745,6 @@ class _MateriasDelTrimestreState extends State<MateriasDelTrimestre> {
                               ],
                             ),
                             const Divider(),
-
-                            // Campos para nueva evaluación
                             Padding(
                               padding: const EdgeInsets.symmetric(
                                 vertical: 8.0,
@@ -766,8 +811,6 @@ class _MateriasDelTrimestreState extends State<MateriasDelTrimestre> {
                                 ],
                               ),
                             ),
-
-                            // Lista de evaluaciones
                             ...materia.evaluaciones.asMap().entries.map((
                               entry,
                             ) {
@@ -843,8 +886,6 @@ class _MateriasDelTrimestreState extends State<MateriasDelTrimestre> {
                                 ),
                               );
                             }),
-
-                            // Total acumulado
                             Padding(
                               padding: const EdgeInsets.only(top: 10),
                               child: Text(

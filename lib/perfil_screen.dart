@@ -87,7 +87,6 @@ class _PerfilExampleState extends State<PerfilExample> {
           'username': _nombreController.text,
           'email': _emailController.text,
           'descripcion': _descripcionController.text,
-          'descripcion': _descripcionController.text,
         },
         where: 'username = ?',
         whereArgs: [widget.username],
@@ -241,8 +240,7 @@ class _PerfilExampleState extends State<PerfilExample> {
                               color: Color(0xFFFF9800),
                             ),
                           ),
-                          if (widget.username !=
-                              null) // CORRECCIÓN APLICADA AQUÍ
+                          if (widget.username != null)
                             IconButton(
                               icon: Icon(
                                 _editando ? Icons.check : Icons.edit,
@@ -276,30 +274,6 @@ class _PerfilExampleState extends State<PerfilExample> {
                               _descripcionController.text,
                               style: const TextStyle(fontSize: 14),
                             ),
-                      if (widget.username != null) ...[
-                        const SizedBox(height: 16),
-                        Text(
-                          'Detalles de la cuenta',
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: Colors.grey[700],
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        ListTile(
-                          contentPadding: EdgeInsets.zero,
-                          leading: Icon(Icons.person, color: Colors.orange),
-                          title: Text('Nombre de usuario'),
-                          subtitle: Text(widget.username!),
-                        ),
-                        if (_userData != null)
-                          ListTile(
-                            contentPadding: EdgeInsets.zero,
-                            leading: Icon(Icons.email, color: Colors.orange),
-                            title: Text('Email registrado'),
-                            subtitle: Text(_userData!['email']),
-                          ),
-                      ],
                     ],
                   ),
                 ),

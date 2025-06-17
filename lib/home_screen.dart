@@ -172,3 +172,4 @@ class _LoginRequiredScreen extends StatelessWidget {
     );
   }
 }
+

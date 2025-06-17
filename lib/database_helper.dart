@@ -140,7 +140,35 @@ class DatabaseHelper {
     await _createDB(db, 1);
   }
 
-  // Métodos para usuarios
+  // Método para calcular el promedio del trimestre
+  Future<double> calcularPromedioTrimestre(int trimestreId) async {
+    final db = await database;
+    final materias = await db.query(
+      'materias',
+      where: 'trimestre_id = ?',
+      whereArgs: [trimestreId],
+    );
+
+    double sumaPonderada = 0;
+    double totalPorcentaje = 0;
+
+    for (var materia in materias) {
+      final evaluaciones = await db.query(
+        'evaluaciones',
+        where: 'materia_id = ?',
+        whereArgs: [materia['id']],
+      );
+
+      for (var eval in evaluaciones) {
+        sumaPonderada += (eval['nota'] as double) * (eval['porcentaje'] as double);
+        totalPorcentaje += eval['porcentaje'] as double;
+      }
+    }
+
+    return totalPorcentaje > 0 ? sumaPonderada / totalPorcentaje : 0;
+  }
+
+  // Resto de métodos existentes...
   Future<int> createUser(String username, String email, String password) async {
     final db = await instance.database;
     return await db.insert('users', {
@@ -160,7 +188,6 @@ class DatabaseHelper {
     return result.isNotEmpty ? result.first : null;
   }
 
-  // Métodos para trimestres
   Future<int> insertTrimestre(
     int userId,
     String nombre, {
@@ -191,7 +218,6 @@ class DatabaseHelper {
     return await db.delete('trimestres', where: 'id = ?', whereArgs: [id]);
   }
 
-  // Métodos para materias
   Future<List<Map<String, dynamic>>> getMateriasPorTrimestre(
     int trimestreId,
   ) async {
@@ -216,7 +242,6 @@ class DatabaseHelper {
     return await db.delete('materias', where: 'id = ?', whereArgs: [id]);
   }
 
-  // Métodos para evaluaciones
   Future<int> insertEvaluacion(
     int materiaId,
     String nombre,
@@ -248,7 +273,6 @@ class DatabaseHelper {
     return await db.delete('evaluaciones', where: 'id = ?', whereArgs: [id]);
   }
 
-  // Métodos para tareas
   Future<int> insertTarea(int userId, int semana, String descripcion) async {
     final db = await database;
     return await db.insert('tareas', {
