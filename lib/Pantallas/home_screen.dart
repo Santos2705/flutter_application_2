@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_application_2/Core/app_colors.dart';
-import 'package:flutter_application_2/inicio_screen.dart';
-import 'package:flutter_application_2/notaciones.screen.dart';
-import 'package:flutter_application_2/perfil_screen.dart';
-import 'package:flutter_application_2/login_page.dart';
+import 'package:flutter_application_2/Pantallas/inicio_screen.dart';
+import 'package:flutter_application_2/Pantallas/notaciones.screen.dart';
+import 'package:flutter_application_2/Pantallas/perfil_screen.dart';
+import 'package:flutter_application_2/Pantallas/login_page.dart';
+import 'package:flutter_application_2/Pantallas/comunicacion_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   final String? username;
@@ -27,7 +28,7 @@ class _HomeScreenState extends State<HomeScreen> {
     // Lógica simplificada basada en las fechas definidas en InicioExample
     if (now.isBefore(DateTime(2025, 4, 20))) return 1;
     if (now.isAfter(DateTime(2025, 7, 12))) return 12;
-    
+
     final startDate = DateTime(2025, 4, 20);
     final daysDifference = now.difference(startDate).inDays;
     return (daysDifference ~/ 7) + 1;
@@ -57,6 +58,10 @@ class _HomeScreenState extends State<HomeScreen> {
       _buildScreen(
         loggedInWidget: NotacionesExample(username: _username),
         featureName: 'las anotaciones',
+      ),
+      _buildScreen(
+        loggedInWidget: ComunicacionScreen(username: _username),
+        featureName: 'la comunicación',
       ),
       _buildScreen(
         loggedInWidget: PerfilExample(username: _username),
@@ -92,7 +97,8 @@ class _HomeScreenState extends State<HomeScreen> {
     setState(() {
       _isLoggedIn = isLoggedIn;
       _username = username;
-      _selectedWeek = _getCurrentAcademicWeek(); // Actualizar semana al iniciar sesión
+      _selectedWeek =
+          _getCurrentAcademicWeek(); // Actualizar semana al iniciar sesión
       _initializeScreens();
     });
   }
@@ -124,21 +130,25 @@ class _HomeScreenState extends State<HomeScreen> {
         ],
       ),
       body: IndexedStack(index: _currentIndex, children: _screens),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _isLoggedIn
-            ? () {
-                /* Acción para usuarios logueados */
-              }
-            : _navigateToLogin,
-        backgroundColor: _isLoggedIn ? AppColors.primary : Colors.orange,
-        child: Icon(_isLoggedIn ? Icons.add : Icons.login),
-      ),
+      // floatingActionButton: FloatingActionButton(
+      //   onPressed: _isLoggedIn
+      //       ? () {
+      //           /* Acción para usuarios logueados */
+      //         }
+      //       : _navigateToLogin,
+      //   backgroundColor: _isLoggedIn ? AppColors.primary : Colors.orange,
+      //   child: Icon(_isLoggedIn ? Icons.add : Icons.login),
+      // ),
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _currentIndex,
         onTap: (index) => setState(() => _currentIndex = index),
         items: const [
           BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Inicio'),
           BottomNavigationBarItem(icon: Icon(Icons.edit), label: 'Anotaciones'),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.message),
+            label: 'Comunicación',
+          ),
           BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Perfil'),
         ],
         selectedItemColor: AppColors.primary,

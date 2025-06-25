@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_application_2/database_helper.dart';
+import 'package:flutter_application_2/Pantallas/database_helper.dart';
 
 class NotacionesExample extends StatefulWidget {
   final String? username;
@@ -60,11 +60,12 @@ class _NotacionesExampleState extends State<NotacionesExample> {
 
   Future<void> _calcularPromedioTrimestre() async {
     if (_trimestreSeleccionado == null) return;
-    
+
     setState(() => _isLoading = true);
     try {
-      final promedio = await DatabaseHelper.instance
-          .calcularPromedioTrimestre(_trimestreSeleccionado!);
+      final promedio = await DatabaseHelper.instance.calcularPromedioTrimestre(
+        _trimestreSeleccionado!,
+      );
       setState(() => _promedioTrimestre = promedio);
     } catch (e) {
       debugPrint('Error al calcular promedio: $e');
@@ -221,7 +222,6 @@ class _NotacionesExampleState extends State<NotacionesExample> {
                   padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                 ),
               ),
-              
             ),
         ],
       ),

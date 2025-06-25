@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:table_calendar/table_calendar.dart';
-import 'package:flutter_application_2/database_helper.dart';
+import 'package:flutter_application_2/Pantallas/database_helper.dart';
 
 class PerfilExample extends StatefulWidget {
   final String? username;

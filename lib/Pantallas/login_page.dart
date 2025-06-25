@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_application_2/database_helper.dart';
-import 'package:flutter_application_2/home_screen.dart';
+import 'package:flutter_application_2/Pantallas/database_helper.dart';
+import 'package:flutter_application_2/Pantallas/home_screen.dart';
 import 'package:flutter_application_2/register_page.dart';
 
 class LoginPage extends StatefulWidget {

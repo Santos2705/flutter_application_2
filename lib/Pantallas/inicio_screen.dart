@@ -69,11 +69,14 @@ class _InicioExampleState extends State<InicioExample> {
 
   List<Map<String, dynamic>> _getTasksForDay(DateTime day) {
     if (widget.username == null) return [];
-    
+
     return _weeklyTasks.values
         .expand((weekTasks) => weekTasks)
-        .where((task) => task['fecha'] != null && 
-            isSameDay(DateTime.parse(task['fecha']), day))
+        .where(
+          (task) =>
+              task['fecha'] != null &&
+              isSameDay(DateTime.parse(task['fecha']), day),
+        )
         .toList();
   }
 
@@ -236,7 +239,10 @@ class _InicioExampleState extends State<InicioExample> {
                           ),
                         ),
                         IconButton(
-                          icon: const Icon(Icons.calendar_today, color: Colors.orange),
+                          icon: const Icon(
+                            Icons.calendar_today,
+                            color: Colors.orange,
+                          ),
                           onPressed: () async {
                             await _selectTaskDate(context);
                             setState(() {});
@@ -257,7 +263,9 @@ class _InicioExampleState extends State<InicioExample> {
                     _addTask();
                     Navigator.pop(context);
                   },
-                  style: ElevatedButton.styleFrom(backgroundColor: Colors.orange),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.orange,
+                  ),
                   child: const Text('Agregar'),
                 ),
               ],
@@ -296,9 +304,13 @@ class _InicioExampleState extends State<InicioExample> {
                 ),
                 const SizedBox(height: 8),
                 GestureDetector(
-                  onTap: () => setState(() => _showWeekSelector = !_showWeekSelector),
+                  onTap: () =>
+                      setState(() => _showWeekSelector = !_showWeekSelector),
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 12,
+                    ),
                     decoration: BoxDecoration(
                       border: Border.all(color: Colors.orange),
                       borderRadius: BorderRadius.circular(8),
@@ -314,7 +326,9 @@ class _InicioExampleState extends State<InicioExample> {
                           ),
                         ),
                         Icon(
-                          _showWeekSelector ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down,
+                          _showWeekSelector
+                              ? Icons.keyboard_arrow_up
+                              : Icons.keyboard_arrow_down,
                           color: Colors.orange,
                         ),
                       ],
@@ -439,28 +453,38 @@ class _InicioExampleState extends State<InicioExample> {
                                       color: Colors.red,
                                       alignment: Alignment.centerRight,
                                       padding: const EdgeInsets.only(right: 20),
-                                      child: const Icon(Icons.delete, color: Colors.white),
+                                      child: const Icon(
+                                        Icons.delete,
+                                        color: Colors.white,
+                                      ),
                                     ),
                                     confirmDismiss: (direction) async {
                                       return await showDialog(
                                         context: context,
                                         builder: (context) => AlertDialog(
                                           title: const Text('Confirmar'),
-                                          content: const Text('¿Eliminar esta tarea?'),
+                                          content: const Text(
+                                            '¿Eliminar esta tarea?',
+                                          ),
                                           actions: [
                                             TextButton(
-                                              onPressed: () => Navigator.of(context).pop(false),
+                                              onPressed: () => Navigator.of(
+                                                context,
+                                              ).pop(false),
                                               child: const Text('Cancelar'),
                                             ),
                                             TextButton(
-                                              onPressed: () => Navigator.of(context).pop(true),
+                                              onPressed: () => Navigator.of(
+                                                context,
+                                              ).pop(true),
                                               child: const Text('Eliminar'),
                                             ),
                                           ],
                                         ),
                                       );
                                     },
-                                    onDismissed: (direction) => _deleteTask(task['id']),
+                                    onDismissed: (direction) =>
+                                        _deleteTask(task['id']),
                                     child: ListTile(
                                       title: Text(task['descripcion']),
                                       subtitle: task['fecha'] != null
@@ -469,8 +493,12 @@ class _InicioExampleState extends State<InicioExample> {
                                             )
                                           : null,
                                       trailing: IconButton(
-                                        icon: const Icon(Icons.delete, color: Colors.red),
-                                        onPressed: () => _deleteTask(task['id']),
+                                        icon: const Icon(
+                                          Icons.delete,
+                                          color: Colors.red,
+                                        ),
+                                        onPressed: () =>
+                                            _deleteTask(task['id']),
                                       ),
                                     ),
                                   ),
@@ -497,7 +525,8 @@ class _InicioExampleState extends State<InicioExample> {
                       firstDay: DateTime(2025, 1, 1),
                       lastDay: DateTime(2025, 12, 31),
                       focusedDay: _focusedDay,
-                      selectedDayPredicate: (day) => isSameDay(_selectedDay, day),
+                      selectedDayPredicate: (day) =>
+                          isSameDay(_selectedDay, day),
                       onDaySelected: (selectedDay, focusedDay) {
                         setState(() {
                           _selectedDay = selectedDay;
@@ -560,12 +589,14 @@ class _InicioExampleState extends State<InicioExample> {
                       ),
                     ),
                     if (_selectedDay != null)
-                      ..._getTasksForDay(_selectedDay!).map((task) => ListTile(
-                        title: Text(task['descripcion']),
-                        subtitle: Text(
-                          'Semana ${task['semana']} • ${task['fecha'] != null ? DateFormat('dd/MM/yyyy').format(DateTime.parse(task['fecha'])) : 'Sin fecha'}',
+                      ..._getTasksForDay(_selectedDay!).map(
+                        (task) => ListTile(
+                          title: Text(task['descripcion']),
+                          subtitle: Text(
+                            'Semana ${task['semana']} • ${task['fecha'] != null ? DateFormat('dd/MM/yyyy').format(DateTime.parse(task['fecha'])) : 'Sin fecha'}',
+                          ),
                         ),
-                      )),
+                      ),
                   ],
                 ),
               ),
