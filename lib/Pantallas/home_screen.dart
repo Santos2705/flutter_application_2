@@ -5,6 +5,7 @@ import 'package:flutter_application_2/Pantallas/notaciones.screen.dart';
 import 'package:flutter_application_2/Pantallas/perfil_screen.dart';
 import 'package:flutter_application_2/Pantallas/login_page.dart';
 import 'package:flutter_application_2/Pantallas/comunicacion_screen.dart';
+import 'package:flutter_application_2/Pantallas/contacto_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   final String? username;
@@ -22,10 +23,8 @@ class _HomeScreenState extends State<HomeScreen> {
   late List<Widget> _screens;
   late int _selectedWeek;
 
-  // Función para determinar la semana académica actual
   int _getCurrentAcademicWeek() {
     final now = DateTime.now();
-    // Lógica simplificada basada en las fechas definidas en InicioExample
     if (now.isBefore(DateTime(2025, 4, 20))) return 1;
     if (now.isAfter(DateTime(2025, 7, 12))) return 12;
 
@@ -67,6 +66,12 @@ class _HomeScreenState extends State<HomeScreen> {
         loggedInWidget: PerfilExample(username: _username),
         featureName: 'tu perfil',
       ),
+      _buildScreen(
+        loggedInWidget: ContactoScreen(
+          username: _username,
+        ), // Nueva pantalla de contacto
+        featureName: 'el contacto',
+      ),
     ];
   }
 
@@ -97,8 +102,7 @@ class _HomeScreenState extends State<HomeScreen> {
     setState(() {
       _isLoggedIn = isLoggedIn;
       _username = username;
-      _selectedWeek =
-          _getCurrentAcademicWeek(); // Actualizar semana al iniciar sesión
+      _selectedWeek = _getCurrentAcademicWeek();
       _initializeScreens();
     });
   }
@@ -130,15 +134,6 @@ class _HomeScreenState extends State<HomeScreen> {
         ],
       ),
       body: IndexedStack(index: _currentIndex, children: _screens),
-      // floatingActionButton: FloatingActionButton(
-      //   onPressed: _isLoggedIn
-      //       ? () {
-      //           /* Acción para usuarios logueados */
-      //         }
-      //       : _navigateToLogin,
-      //   backgroundColor: _isLoggedIn ? AppColors.primary : Colors.orange,
-      //   child: Icon(_isLoggedIn ? Icons.add : Icons.login),
-      // ),
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _currentIndex,
         onTap: (index) => setState(() => _currentIndex = index),
@@ -150,6 +145,10 @@ class _HomeScreenState extends State<HomeScreen> {
             label: 'Comunicación',
           ),
           BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Perfil'),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.contact_phone),
+            label: 'Contacto',
+          ),
         ],
         selectedItemColor: AppColors.primary,
         unselectedItemColor: Colors.grey,
