@@ -710,10 +710,14 @@ class _MateriasDelTrimestreState extends State<MateriasDelTrimestre> {
               ),
             ),
 <<<<<<< HEAD
+<<<<<<< HEAD
           ],
 =======
           ),
 >>>>>>> parent of 391ecc0 (Merge branch 'main' of https://github.com/Santos2705/flutter_application_2)
+=======
+          ],
+>>>>>>> parent of 3bdbad7 (Corrección de colores y de errores, reposicionamiento del botón de promedio)
         ),
         const SizedBox(height: 20),
         Expanded(
