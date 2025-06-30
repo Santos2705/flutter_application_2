@@ -709,7 +709,11 @@ class _MateriasDelTrimestreState extends State<MateriasDelTrimestre> {
                 style: TextStyle(color: Colors.white),
               ),
             ),
+<<<<<<< HEAD
           ],
+=======
+          ),
+>>>>>>> parent of 391ecc0 (Merge branch 'main' of https://github.com/Santos2705/flutter_application_2)
         ),
         const SizedBox(height: 20),
         Expanded(

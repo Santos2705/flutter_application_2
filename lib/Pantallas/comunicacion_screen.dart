@@ -61,7 +61,7 @@ class ComunicacionScreen extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
-                      color: AppColors.secundary,
+                      color: AppColors.primary,
                     ),
                   ),
                   const SizedBox(height: 10),
