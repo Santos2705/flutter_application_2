@@ -7,11 +7,7 @@ class ComunicacionScreen extends StatelessWidget {
     Evento(
       titulo: "Preinscripción del Servicio Comunitario",
       descripcion: "Facultad de Humanidades - Departamento de Humanidades y Ciencias de la Educación\n\n"
-          "¡Elige tu proyecto y escanea el QR!\n\n"
-          "Requisitos:\n"
-          "• 90 créditos aprobados\n"
-          "• Asignatura prelatoria aprobada (FGEDI08 o FGEDI09) hasta el trimestre 2425-3\n"
-          "• O el Taller de Inducción (FPTDI01) aprobado",
+          "¡Elige tu proyecto y escanea el QR!\n\n",
       fecha: "Preinscripción: 25 de junio de 2025 (9:00 a.m. a 5:00 p.m.)\n"
           "Inscripción: 15 de julio de 2025",
       color: Colors.blue[50]!,
@@ -25,9 +21,9 @@ class ComunicacionScreen extends StatelessWidget {
     Evento(
       titulo: "Inscripciones Periodo Intensivo",
       descripcion: "OFERTA:\n"
-          "• Asignatura 2324-1\n"
-          "• Electivas 2324-1",
-      fecha: "3 de Julio 2023",
+          "• Asignaturas \n"
+          "• Electivas",
+      fecha: "15 de Julio 2025",
       color: Colors.green[50]!,
       imagen: "assets/intensivo.jpeg",
     ),
