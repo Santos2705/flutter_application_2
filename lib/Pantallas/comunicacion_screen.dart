@@ -61,7 +61,7 @@ class ComunicacionScreen extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
-                      color: AppColors.secundary,
+                      color: AppColors.primary,
                     ),
                   ),
                   const SizedBox(height: 10),
@@ -116,9 +116,9 @@ class ComunicacionScreen extends StatelessWidget {
             Text(
               '¡No te pierdas nuestros eventos importantes!',
               style: TextStyle(
-                fontSize: 16,
+                fontSize: 18,
                 fontStyle: FontStyle.italic,
-                color: AppColors.secundary,
+                color: AppColors.primary,
               ),
             ),
           ],
