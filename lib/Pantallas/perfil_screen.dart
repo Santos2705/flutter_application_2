@@ -148,7 +148,7 @@ class _PerfilExampleState extends State<PerfilExample> {
             Container(
               padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
               decoration: BoxDecoration(
-                color: const Color(0xFFFF9800),
+                color: const Color(0xFFFF8200),
                 borderRadius: const BorderRadius.only(
                   bottomLeft: Radius.circular(20),
                   bottomRight: Radius.circular(20),
@@ -162,7 +162,7 @@ class _PerfilExampleState extends State<PerfilExample> {
                     child: Icon(
                       Icons.person,
                       size: 50,
-                      color: Color(0xFFFF9800),
+                      color: Color(0xFFFF8200),
                     ),
                   ),
                   const SizedBox(height: 16),
@@ -237,14 +237,14 @@ class _PerfilExampleState extends State<PerfilExample> {
                             style: TextStyle(
                               fontSize: 18,
                               fontWeight: FontWeight.bold,
-                              color: Color(0xFFFF9800),
+                              color: Color(0xFFFF8200),
                             ),
                           ),
                           if (widget.username != null)
                             IconButton(
                               icon: Icon(
                                 _editando ? Icons.check : Icons.edit,
-                                color: const Color(0xFFFF9800),
+                                color: const Color(0xFFFF8200),
                               ),
                               onPressed: _toggleEdicion,
                             ),
@@ -295,7 +295,7 @@ class _PerfilExampleState extends State<PerfilExample> {
                         style: TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
-                          color: Color(0xFFFF9800),
+                          color: Color(0xFFFF8200),
                         ),
                       ),
                       const SizedBox(height: 8),
@@ -315,25 +315,25 @@ class _PerfilExampleState extends State<PerfilExample> {
                             color: Colors.white,
                           ),
                           formatButtonDecoration: BoxDecoration(
-                            color: const Color(0xFFFF9800),
+                            color: const Color(0xFFFF8200),
                             borderRadius: BorderRadius.circular(6),
                           ),
                           leftChevronIcon: const Icon(
                             Icons.chevron_left,
-                            color: Color(0xFFFF9800),
+                            color: Color(0xFFFF8200),
                           ),
                           rightChevronIcon: const Icon(
                             Icons.chevron_right,
-                            color: Color(0xFFFF9800),
+                            color: Color(0xFFFF8200),
                           ),
                         ),
                         calendarStyle: CalendarStyle(
                           todayDecoration: BoxDecoration(
-                            color: const Color(0xFFFF9800).withOpacity(0.5),
+                            color: const Color(0xFFFF8200).withOpacity(0.5),
                             shape: BoxShape.circle,
                           ),
                           selectedDecoration: const BoxDecoration(
-                            color: Color(0xFFFF9800),
+                            color: Color(0xFFFF8200),
                             shape: BoxShape.circle,
                           ),
                         ),

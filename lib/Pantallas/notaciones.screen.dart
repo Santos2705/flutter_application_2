@@ -18,6 +18,7 @@ class _NotacionesExampleState extends State<NotacionesExample> {
   bool _isLoading = true;
   int? _trimestreSeleccionado;
   double _promedioTrimestre = 0;
+  bool _mostrarPromedio = false;
 
   @override
   void initState() {
@@ -59,10 +60,14 @@ class _NotacionesExampleState extends State<NotacionesExample> {
     }
   }
 
-  Future<void> _calcularPromedioTrimestre() async {
+  Future<void> calcularPromedioTrimestre() async {
     if (_trimestreSeleccionado == null) return;
 
-    setState(() => _isLoading = true);
+    setState(() {
+      _isLoading = true;
+      _mostrarPromedio = true;
+    });
+
     try {
       final promedio = await DatabaseHelper.instance.calcularPromedioTrimestre(
         _trimestreSeleccionado!,
@@ -114,6 +119,7 @@ class _NotacionesExampleState extends State<NotacionesExample> {
         await _loadTrimestres();
         if (_trimestreSeleccionado == trimestreId) {
           _trimestreSeleccionado = null;
+          _mostrarPromedio = false;
         }
       }
     } catch (e) {
@@ -166,6 +172,8 @@ class _NotacionesExampleState extends State<NotacionesExample> {
                 onPressed: () {
                   setState(() {
                     _trimestreSeleccionado = null;
+                    _promedioTrimestre = 0;
+                    _mostrarPromedio = false;
                   });
                 },
               )
@@ -223,7 +231,7 @@ class _NotacionesExampleState extends State<NotacionesExample> {
                   ? _buildListaTrimestres()
                   : Column(
                       children: [
-                        if (_promedioTrimestre > 0)
+                        if (_mostrarPromedio && _promedioTrimestre > 0)
                           Padding(
                             padding: const EdgeInsets.only(bottom: 16.0),
                             child: Card(
@@ -240,7 +248,7 @@ class _NotacionesExampleState extends State<NotacionesExample> {
                                       style: TextStyle(
                                         fontSize: 18,
                                         fontWeight: FontWeight.bold,
-                                        color: Colors.orange[800],
+                                        color: Colors.orange[0xFFFF8200],
                                       ),
                                     ),
                                   ],
@@ -255,10 +263,8 @@ class _NotacionesExampleState extends State<NotacionesExample> {
                               (t) => t['id'] == _trimestreSeleccionado,
                             )['nombre'],
                             username: widget.username,
-                            onMateriasUpdated: () {
-                              _loadTrimestres();
-                              _calcularPromedioTrimestre();
-                            },
+                            onMateriasUpdated: _loadTrimestres,
+                            calcularPromedio: calcularPromedioTrimestre,
                           ),
                         ),
                       ],
@@ -286,7 +292,7 @@ class _NotacionesExampleState extends State<NotacionesExample> {
             ElevatedButton(
               onPressed: _agregarTrimestre,
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFFFF9800),
+                backgroundColor: const Color(0xFFFF8200),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(10),
                 ),
@@ -324,7 +330,7 @@ class _NotacionesExampleState extends State<NotacionesExample> {
                           trimestre['nombre'],
                           style: TextStyle(
                             fontWeight: FontWeight.bold,
-                            color: Colors.orange[800],
+                            color: Colors.orange[0xFFFF8200],
                           ),
                         ),
                         subtitle:
@@ -348,6 +354,7 @@ class _NotacionesExampleState extends State<NotacionesExample> {
                           setState(() {
                             _trimestreSeleccionado = trimestre['id'];
                             _promedioTrimestre = 0;
+                            _mostrarPromedio = false;
                           });
                         },
                       ), // Cierra ListTile
@@ -365,6 +372,7 @@ class MateriasDelTrimestre extends StatefulWidget {
   final String trimestreNombre;
   final String? username;
   final VoidCallback? onMateriasUpdated;
+  final Future<void> Function() calcularPromedio;
 
   const MateriasDelTrimestre({
     super.key,
@@ -372,6 +380,7 @@ class MateriasDelTrimestre extends StatefulWidget {
     required this.trimestreNombre,
     this.username,
     this.onMateriasUpdated,
+    required this.calcularPromedio,
   });
 
   @override
@@ -667,7 +676,7 @@ class _MateriasDelTrimestreState extends State<MateriasDelTrimestre> {
             style: TextStyle(
               fontSize: 25,
               fontWeight: FontWeight.bold,
-              color: Colors.orange[0xFFFF6106],
+              color: Colors.orange[0xFFFF8200],
             ),
           ),
         ),
@@ -743,6 +752,25 @@ class _MateriasDelTrimestreState extends State<MateriasDelTrimestre> {
             ),
           ),
         ),
+        Align(
+          alignment: Alignment.centerRight,
+          child: Padding(
+            padding: const EdgeInsets.only(top: 8.0),
+            child: ElevatedButton.icon(
+              icon: Icon(Icons.calculate, size: 20),
+              label: Text('PROMEDIO'),
+              onPressed: widget.calcularPromedio,
+              style: ElevatedButton.styleFrom(
+                foregroundColor: Colors.white,
+                backgroundColor: const Color(0xFFFF8200),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              ),
+            ),
+          ),
+        ),
         const SizedBox(height: 20),
         Expanded(
           child: _materias.isEmpty
@@ -774,7 +802,7 @@ class _MateriasDelTrimestreState extends State<MateriasDelTrimestre> {
                                   style: const TextStyle(
                                     fontSize: 18,
                                     fontWeight: FontWeight.bold,
-                                    color: Color(0xFFFF9800),
+                                    color: Color(0xFFFF8200),
                                   ),
                                 ),
                                 const Spacer(),
