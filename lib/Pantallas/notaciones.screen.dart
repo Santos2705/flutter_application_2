@@ -215,7 +215,7 @@ class _NotacionesExampleState extends State<NotacionesExample> {
                 onPressed: _calcularPromedioTrimestre,
                 style: ElevatedButton.styleFrom(
                   foregroundColor: Colors.white,
-                  backgroundColor: Colors.orange[800],
+                  backgroundColor: const Color(0xFFFF8200),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(20),
                   ),
@@ -255,7 +255,7 @@ class _NotacionesExampleState extends State<NotacionesExample> {
                                       style: TextStyle(
                                         fontSize: 18,
                                         fontWeight: FontWeight.bold,
-                                        color: Colors.orange[800],
+                                        color: Colors.orange[0xFFFF8200],
                                       ),
                                     ),
                                   ],
@@ -301,7 +301,7 @@ class _NotacionesExampleState extends State<NotacionesExample> {
             ElevatedButton(
               onPressed: _agregarTrimestre,
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFFFF9800),
+                backgroundColor: const Color(0xFFFF8200),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(10),
                 ),
@@ -337,7 +337,7 @@ class _NotacionesExampleState extends State<NotacionesExample> {
                           trimestre['nombre'],
                           style: TextStyle(
                             fontWeight: FontWeight.bold,
-                            color: Colors.orange[800],
+                            color: Colors.orange[0xFFFF8200],
                           ),
                         ),
                         subtitle:
@@ -680,7 +680,7 @@ class _MateriasDelTrimestreState extends State<MateriasDelTrimestre> {
             style: TextStyle(
               fontSize: 25,
               fontWeight: FontWeight.bold,
-              color: Colors.orange[0xFFFF6106],
+              color: Colors.orange[0xFFFF8200],
             ),
           ),
         ),
@@ -742,7 +742,7 @@ class _MateriasDelTrimestreState extends State<MateriasDelTrimestre> {
                                   style: const TextStyle(
                                     fontSize: 18,
                                     fontWeight: FontWeight.bold,
-                                    color: Color(0xFFFF9800),
+                                    color: Color(0xFFFF8200),
                                   ),
                                 ),
                                 const Spacer(),
