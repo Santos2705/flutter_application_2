@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_application_2/Pantallas/database_helper.dart';
-import 'package:flutter_application_2/Core/app_colors.dart';
 
 class NotacionesExample extends StatefulWidget {
   final String? username;
@@ -158,7 +157,6 @@ class _NotacionesExampleState extends State<NotacionesExample> {
           _trimestreSeleccionado == null
               ? 'Anotaciones de Trimestres'
               : 'Materias del Trimestre',
-          style: TextStyle(fontSize: 18), // Reducir tamaño de fuente
         ),
         leading: _trimestreSeleccionado != null
             ? IconButton(
@@ -208,6 +206,23 @@ class _NotacionesExampleState extends State<NotacionesExample> {
               },
               tooltip: 'Borrar todos los trimestres',
             ),
+          if (_trimestreSeleccionado != null)
+            Padding(
+              padding: const EdgeInsets.only(right: 8.0),
+              child: ElevatedButton.icon(
+                icon: Icon(Icons.calculate, size: 20),
+                label: Text('PROMEDIO'),
+                onPressed: _calcularPromedioTrimestre,
+                style: ElevatedButton.styleFrom(
+                  foregroundColor: Colors.white,
+                  backgroundColor: Colors.orange[800],
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                ),
+              ),
+            ),
         ],
       ),
       body: widget.username == null
@@ -236,7 +251,7 @@ class _NotacionesExampleState extends State<NotacionesExample> {
                                     Icon(Icons.star, color: Colors.orange),
                                     SizedBox(width: 8),
                                     Text(
-                                      'Promedio del trimestre: ${_promedioTrimestre.toStringAsFixed(2)}',
+                                      'Promedio del trimestre: ${_promedioTrimestre.toStringAsFixed(2)}',
                                       style: TextStyle(
                                         fontSize: 18,
                                         fontWeight: FontWeight.bold,
@@ -298,8 +313,6 @@ class _NotacionesExampleState extends State<NotacionesExample> {
             ),
           ],
         ),
-        const SizedBox(height: 10),
-        // Botón de promedio eliminado de la lista de trimestres
         const SizedBox(height: 20),
         Expanded(
           child: _trimestres.isEmpty
@@ -329,11 +342,11 @@ class _NotacionesExampleState extends State<NotacionesExample> {
                         ),
                         subtitle:
                             trimestre['fecha_inicio'] != null ||
-                                    trimestre['fecha_fin'] != null
-                                ? Text(
-                                    '${trimestre['fecha_inicio'] ?? 'Sin fecha'} - ${trimestre['fecha_fin'] ?? 'Sin fecha'}',
-                                  )
-                                : null,
+                                trimestre['fecha_fin'] != null
+                            ? Text(
+                                '${trimestre['fecha_inicio'] ?? 'Sin fecha'} - ${trimestre['fecha_fin'] ?? 'Sin fecha'}',
+                              )
+                            : null,
                         trailing: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
@@ -350,10 +363,10 @@ class _NotacionesExampleState extends State<NotacionesExample> {
                             _promedioTrimestre = 0;
                           });
                         },
-                      ), // Cierra ListTile
-                    ); // Cierra Card
-                  }, // Cierra itemBuilder
-                ), // Cierra ListView.builder
+                      ),
+                    );
+                  },
+                ),
         ),
       ],
     );
@@ -683,65 +696,20 @@ class _MateriasDelTrimestreState extends State<MateriasDelTrimestre> {
               ),
             ),
             const SizedBox(width: 10),
-            SizedBox(
-              width: 120,
-              child: ElevatedButton(
-                onPressed: _agregarMateria,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFFFF9800),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                ),
-                child: const Text(
-                  'Agregar',
-                  style: TextStyle(color: Colors.white),
-                ),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 10),
-        Align(
-          alignment: Alignment.centerRight,
-          child: SizedBox(
-            width: 120,
-            child: ElevatedButton.icon(
-              icon: Icon(Icons.calculate, size: 16),
-              label: Text('Promedio', style: TextStyle(fontSize: 12)),
-              onPressed: () {
-                double suma = 0;
-                int cantidad = 0;
-                for (var materia in _materias) {
-                  for (var eval in materia.evaluaciones) {
-                    suma += eval.puntosObtenidos;
-                    cantidad++;
-                  }
-                }
-                double promedio = cantidad > 0 ? suma / cantidad : 0;
-                showDialog(
-                  context: context,
-                  builder: (context) => AlertDialog(
-                    title: const Text('Promedio de Materias'),
-                    content: Text('El promedio de todas las materias es: ${promedio.toStringAsFixed(2)}'),
-                    actions: [
-                      TextButton(
-                        onPressed: () => Navigator.pop(context),
-                        child: const Text('Cerrar'),
-                      ),
-                    ],
-                  ),
-                );
-              },
+            ElevatedButton(
+              onPressed: _agregarMateria,
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFFFF9800),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(10),
                 ),
-                foregroundColor: Colors.white,
+              ),
+              child: const Text(
+                'Agregar',
+                style: TextStyle(color: Colors.white),
               ),
             ),
-          ),
+          ],
         ),
         const SizedBox(height: 20),
         Expanded(
