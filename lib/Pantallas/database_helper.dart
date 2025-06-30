@@ -19,7 +19,7 @@ class DatabaseHelper {
 
     return await openDatabase(
       path,
-      version: 6, // Incrementado de 5 a 6 por la nueva tabla
+      version: 5,
       onCreate: _createDB,
       onUpgrade: _upgradeDB,
     );
@@ -77,16 +77,6 @@ class DatabaseHelper {
         FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
       )
     ''');
-
-    await db.execute('''
-      CREATE TABLE mensajes_contacto (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        nombre TEXT NOT NULL,
-        email TEXT NOT NULL,
-        mensaje TEXT NOT NULL,
-        fecha TEXT NOT NULL
-      )
-    ''');
   }
 
   Future _upgradeDB(Database db, int oldVersion, int newVersion) async {
@@ -119,17 +109,7 @@ class DatabaseHelper {
           nombre TEXT NOT NULL,
           FOREIGN KEY (trimestre_id) REFERENCES trimestres (id) ON DELETE CASCADE
         )
-        
       ''');
-      await db.execute('''
-      CREATE TABLE mensajes_contacto (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        nombre TEXT NOT NULL,
-        email TEXT NOT NULL,
-        mensaje TEXT NOT NULL,
-        fecha TEXT NOT NULL
-      )
-    ''');
 
       final userIds = await db.query('users', columns: ['id']);
       for (var user in userIds) {
@@ -158,39 +138,12 @@ class DatabaseHelper {
     if (oldVersion < 5) {
       await db.execute('ALTER TABLE tareas ADD COLUMN fecha TEXT');
     }
-    if (oldVersion < 6) {
-      await db.execute('''
-        CREATE TABLE mensajes_contacto (
-          id INTEGER PRIMARY KEY AUTOINCREMENT,
-          nombre TEXT NOT NULL,
-          email TEXT NOT NULL,
-          mensaje TEXT NOT NULL,
-          fecha TEXT NOT NULL
-        )
-      ''');
-    }
   }
 
   Future _createTables(Database db) async {
     await _createDB(db, 1);
   }
 
-  // Método para insertar mensajes de contacto
-  Future<int> insertMensajeContacto(
-    String nombre,
-    String email,
-    String mensaje,
-  ) async {
-    final db = await database;
-    return await db.insert('mensajes_contacto', {
-      'nombre': nombre,
-      'email': email,
-      'mensaje': mensaje,
-      'fecha': DateTime.now().toIso8601String(),
-    });
-  }
-
-  // Resto de los métodos existentes...
   Future<int> createUser(String username, String email, String password) async {
     final db = await instance.database;
     return await db.insert('users', {
@@ -240,9 +193,7 @@ class DatabaseHelper {
     return await db.delete('trimestres', where: 'id = ?', whereArgs: [id]);
   }
 
-  Future<List<Map<String, dynamic>>> getMateriasPorTrimestre(
-    int trimestreId,
-  ) async {
+  Future<List<Map<String, dynamic>>> getMateriasPorTrimestre(int trimestreId) async {
     final db = await database;
     return await db.query(
       'materias',
@@ -279,9 +230,7 @@ class DatabaseHelper {
     });
   }
 
-  Future<List<Map<String, dynamic>>> getEvaluacionesPorMateria(
-    int materiaId,
-  ) async {
+  Future<List<Map<String, dynamic>>> getEvaluacionesPorMateria(int materiaId) async {
     final db = await database;
     return await db.query(
       'evaluaciones',
@@ -310,10 +259,7 @@ class DatabaseHelper {
     });
   }
 
-  Future<List<Map<String, dynamic>>> getTareasPorSemana(
-    int userId,
-    int semana,
-  ) async {
+  Future<List<Map<String, dynamic>>> getTareasPorSemana(int userId, int semana) async {
     final db = await database;
     return await db.query(
       'tareas',
@@ -346,8 +292,7 @@ class DatabaseHelper {
       );
 
       for (var eval in evaluaciones) {
-        sumaPonderada +=
-            (eval['nota'] as double) * (eval['porcentaje'] as double);
+        sumaPonderada += (eval['nota'] as double) * (eval['porcentaje'] as double);
         totalPorcentaje += eval['porcentaje'] as double;
       }
     }
