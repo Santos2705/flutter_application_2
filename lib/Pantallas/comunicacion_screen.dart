@@ -21,11 +21,21 @@ class ComunicacionScreen extends StatelessWidget {
     Evento(
       titulo: "Inscripciones Periodo Intensivo",
       descripcion: "OFERTA:\n"
-          "• Asignaturas\n"
-          "• Electivas ",
+          "• Asignaturas \n"
+          "• Electivas",
       fecha: "15 de Julio 2025",
       color: Colors.green[50]!,
       imagen: "assets/intensivo.jpeg",
+    ),
+    Evento(
+      titulo: "Bootcamp Desarrollo de Videojuegos",
+      descripcion: "Contenidos digitales para el Metaverso:\n"
+          "• Introducción a la Realidad Virtual\n"
+          "• Desarrollo de Entornos Tridimensionales interactivos\n"
+          "• Modelado artístico 3D",
+      fecha: "Del 15-07 hasta 15-08 de 2025",
+      color: Colors.purple[50]!,
+      imagen: "assets/bootcamp.jpeg",
     ),
   ];
 
@@ -198,7 +208,7 @@ class ComunicacionScreen extends StatelessWidget {
           body: Center(
             child: InteractiveViewer(
               panEnabled: true,
-              minScale: 1.0,  // Zoom inicial más grande
+              minScale: 1.0,
               maxScale: 5.0,
               child: Image.asset(
                 imagePath,
