@@ -17,6 +17,7 @@ class _NotacionesExampleState extends State<NotacionesExample> {
   bool _isLoading = true;
   int? _trimestreSeleccionado;
   double _promedioTrimestre = 0;
+  bool _mostrarPromedio = false;
 
   @override
   void initState() {
@@ -58,10 +59,14 @@ class _NotacionesExampleState extends State<NotacionesExample> {
     }
   }
 
-  Future<void> _calcularPromedioTrimestre() async {
+  Future<void> calcularPromedioTrimestre() async {
     if (_trimestreSeleccionado == null) return;
 
-    setState(() => _isLoading = true);
+    setState(() {
+      _isLoading = true;
+      _mostrarPromedio = true;
+    });
+
     try {
       final promedio = await DatabaseHelper.instance.calcularPromedioTrimestre(
         _trimestreSeleccionado!,
@@ -113,6 +118,7 @@ class _NotacionesExampleState extends State<NotacionesExample> {
         await _loadTrimestres();
         if (_trimestreSeleccionado == trimestreId) {
           _trimestreSeleccionado = null;
+          _mostrarPromedio = false;
         }
       }
     } catch (e) {
@@ -157,6 +163,7 @@ class _NotacionesExampleState extends State<NotacionesExample> {
           _trimestreSeleccionado == null
               ? 'Anotaciones de Trimestres'
               : 'Materias del Trimestre',
+          style: TextStyle(fontSize: 18), // Reducir tamaño de fuente
         ),
         leading: _trimestreSeleccionado != null
             ? IconButton(
@@ -164,6 +171,8 @@ class _NotacionesExampleState extends State<NotacionesExample> {
                 onPressed: () {
                   setState(() {
                     _trimestreSeleccionado = null;
+                    _promedioTrimestre = 0;
+                    _mostrarPromedio = false;
                   });
                 },
               )
@@ -206,23 +215,6 @@ class _NotacionesExampleState extends State<NotacionesExample> {
               },
               tooltip: 'Borrar todos los trimestres',
             ),
-          if (_trimestreSeleccionado != null)
-            Padding(
-              padding: const EdgeInsets.only(right: 8.0),
-              child: ElevatedButton.icon(
-                icon: Icon(Icons.calculate, size: 20),
-                label: Text('PROMEDIO'),
-                onPressed: _calcularPromedioTrimestre,
-                style: ElevatedButton.styleFrom(
-                  foregroundColor: Colors.white,
-                  backgroundColor: const Color(0xFFFF8200),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                ),
-              ),
-            ),
         ],
       ),
       body: widget.username == null
@@ -238,7 +230,7 @@ class _NotacionesExampleState extends State<NotacionesExample> {
                   ? _buildListaTrimestres()
                   : Column(
                       children: [
-                        if (_promedioTrimestre > 0)
+                        if (_mostrarPromedio && _promedioTrimestre > 0)
                           Padding(
                             padding: const EdgeInsets.only(bottom: 16.0),
                             child: Card(
@@ -251,7 +243,7 @@ class _NotacionesExampleState extends State<NotacionesExample> {
                                     Icon(Icons.star, color: Colors.orange),
                                     SizedBox(width: 8),
                                     Text(
-                                      'Promedio del trimestre: ${_promedioTrimestre.toStringAsFixed(2)}',
+                                      'Promedio del trimestre: ${_promedioTrimestre.toStringAsFixed(2)}',
                                       style: TextStyle(
                                         fontSize: 18,
                                         fontWeight: FontWeight.bold,
@@ -270,10 +262,8 @@ class _NotacionesExampleState extends State<NotacionesExample> {
                               (t) => t['id'] == _trimestreSeleccionado,
                             )['nombre'],
                             username: widget.username,
-                            onMateriasUpdated: () {
-                              _loadTrimestres();
-                              _calcularPromedioTrimestre();
-                            },
+                            onMateriasUpdated: _loadTrimestres,
+                            calcularPromedio: calcularPromedioTrimestre,
                           ),
                         ),
                       ],
@@ -313,6 +303,8 @@ class _NotacionesExampleState extends State<NotacionesExample> {
             ),
           ],
         ),
+        const SizedBox(height: 10),
+        // Botón de promedio eliminado de la lista de trimestres
         const SizedBox(height: 20),
         Expanded(
           child: _trimestres.isEmpty
@@ -342,11 +334,11 @@ class _NotacionesExampleState extends State<NotacionesExample> {
                         ),
                         subtitle:
                             trimestre['fecha_inicio'] != null ||
-                                trimestre['fecha_fin'] != null
-                            ? Text(
-                                '${trimestre['fecha_inicio'] ?? 'Sin fecha'} - ${trimestre['fecha_fin'] ?? 'Sin fecha'}',
-                              )
-                            : null,
+                                    trimestre['fecha_fin'] != null
+                                ? Text(
+                                    '${trimestre['fecha_inicio'] ?? 'Sin fecha'} - ${trimestre['fecha_fin'] ?? 'Sin fecha'}',
+                                  )
+                                : null,
                         trailing: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
@@ -361,12 +353,13 @@ class _NotacionesExampleState extends State<NotacionesExample> {
                           setState(() {
                             _trimestreSeleccionado = trimestre['id'];
                             _promedioTrimestre = 0;
+                            _mostrarPromedio = false;
                           });
                         },
-                      ),
-                    );
-                  },
-                ),
+                      ), // Cierra ListTile
+                    ); // Cierra Card
+                  }, // Cierra itemBuilder
+                ), // Cierra ListView.builder
         ),
       ],
     );
@@ -378,6 +371,7 @@ class MateriasDelTrimestre extends StatefulWidget {
   final String trimestreNombre;
   final String? username;
   final VoidCallback? onMateriasUpdated;
+  final Future<void> Function() calcularPromedio;
 
   const MateriasDelTrimestre({
     super.key,
@@ -385,6 +379,7 @@ class MateriasDelTrimestre extends StatefulWidget {
     required this.trimestreNombre,
     this.username,
     this.onMateriasUpdated,
+    required this.calcularPromedio,
   });
 
   @override
@@ -696,21 +691,67 @@ class _MateriasDelTrimestreState extends State<MateriasDelTrimestre> {
               ),
             ),
             const SizedBox(width: 10),
-            ElevatedButton(
-              onPressed: _agregarMateria,
+            SizedBox(
+              width: 120,
+              child: ElevatedButton(
+                onPressed: _agregarMateria,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFFFF9800),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
+                child: const Text(
+                  'Agregar',
+                  style: TextStyle(color: Colors.white),
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 10),
+        Align(
+          alignment: Alignment.centerRight,
+          child: SizedBox(
+            width: 120,
+            child: ElevatedButton.icon(
+              icon: Icon(Icons.calculate, size: 16),
+              label: Text('Promedio', style: TextStyle(fontSize: 12)),
+              onPressed: () {
+                double suma = 0;
+                int cantidad = 0;
+                for (var materia in _materias) {
+                  for (var eval in materia.evaluaciones) {
+                    suma += eval.puntosObtenidos;
+                    cantidad++;
+                  }
+                }
+                double promedio = cantidad > 0 ? suma / cantidad : 0;
+                showDialog(
+                  context: context,
+                  builder: (context) => AlertDialog(
+                    title: const Text('Promedio de Materias'),
+                    content: Text('El promedio de todas las materias es: ${promedio.toStringAsFixed(2)}'),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(context),
+                        child: const Text('Cerrar'),
+                      ),
+                    ],
+                  ),
+                );
+              },
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFFFF9800),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(10),
                 ),
-              ),
-              child: const Text(
-                'Agregar',
-                style: TextStyle(color: Colors.white),
+                foregroundColor: Colors.white,
               ),
             ),
-          ],
+          ),
         ),
+        // Botón de PROMEDIO (mayúscula) eliminado, solo queda el de Promedio pequeño
         const SizedBox(height: 20),
         Expanded(
           child: _materias.isEmpty
