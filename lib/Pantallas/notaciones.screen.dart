@@ -630,10 +630,18 @@ class _MateriasDelTrimestreState extends State<MateriasDelTrimestre> {
   }
 
   double _calcularPromedio(int materiaIndex) {
-    return _materias[materiaIndex].evaluaciones.fold<double>(
-      0.0,
-      (double sum, Evaluacion eval) => sum + eval.puntosObtenidos,
-    );
+    // Suma ponderada de notas sobre 20
+    final evaluaciones = _materias[materiaIndex].evaluaciones;
+    if (evaluaciones.isEmpty) return 0.0;
+    double sumaPonderada = 0.0;
+    double sumaPorcentajes = 0.0;
+    for (var eval in evaluaciones) {
+      sumaPonderada += eval.nota * eval.porcentaje;
+      sumaPorcentajes += eval.porcentaje;
+    }
+    if (sumaPorcentajes == 0) return 0.0;
+    // El promedio final es sobre 20
+    return (sumaPonderada / sumaPorcentajes);
   }
 
   @override
@@ -721,8 +729,14 @@ class _MateriasDelTrimestreState extends State<MateriasDelTrimestre> {
                 double suma = 0;
                 int cantidad = 0;
                 for (var materia in _materias) {
+                  double sumaPonderada = 0.0;
+                  double sumaPorcentajes = 0.0;
                   for (var eval in materia.evaluaciones) {
-                    suma += eval.puntosObtenidos;
+                    sumaPonderada += eval.nota * eval.porcentaje;
+                    sumaPorcentajes += eval.porcentaje;
+                  }
+                  if (sumaPorcentajes > 0) {
+                    suma += (sumaPonderada / sumaPorcentajes);
                     cantidad++;
                   }
                 }
