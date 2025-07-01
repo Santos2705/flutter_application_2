@@ -1,223 +1,310 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_application_2/Core/app_colors.dart';
+import 'package:http/http.dart' as http;
+import 'package:html/parser.dart' as parser;
+import 'package:flutter_html/flutter_html.dart';
 
-class ComunicacionScreen extends StatelessWidget {
-  final String? username;
-  final List<Evento> eventos = [
-    Evento(
-      titulo: "Preinscripción del Servicio Comunitario",
-      descripcion: "Facultad de Humanidades - Departamento de Humanidades y Ciencias de la Educación\n\n"
-          "¡Elige tu proyecto y escanea el QR!\n\n",
-      fecha: "Preinscripción: 25 de junio de 2025 (9:00 a.m. a 5:00 p.m.)\n"
-          "Inscripción: 15 de julio de 2025",
-      color: Colors.blue[50]!,
-      imagen: "assets/servicio.jpeg",
-      proyectos: [
-        "Creciendo juntos - BPTHE71-4",
-        "Redes para el aprendizaje - BPTHE71-7",
-        "Transformando vidas - BPTHE71-8 (oferta de 120 horas en 5 semanas)"
-      ],
-    ),
-    Evento(
-      titulo: "Inscripciones Periodo Intensivo",
-      descripcion: "OFERTA:\n"
-          "• Asignaturas \n"
-          "• Electivas",
-      fecha: "15 de Julio 2025",
-      color: Colors.green[50]!,
-      imagen: "assets/intensivo.jpeg",
-    ),
-    Evento(
-      titulo: "Bootcamp Desarrollo de Videojuegos",
-      descripcion: "Contenidos digitales para el Metaverso:\n"
-          "• Introducción a la Realidad Virtual\n"
-          "• Desarrollo de Entornos Tridimensionales interactivos\n"
-          "• Modelado artístico 3D",
-      fecha: "Del 15-07 hasta 15-08 de 2025",
-      color: Colors.purple[50]!,
-      imagen: "assets/bootcamp.jpeg",
-    ),
-  ];
+class ComunicacionScreen extends StatefulWidget {
+  const ComunicacionScreen({super.key, String? username});
 
-  ComunicacionScreen({super.key, this.username});
+  @override
+  State<ComunicacionScreen> createState() => _ComunicacionScreenState();
+}
+
+class _ComunicacionScreenState extends State<ComunicacionScreen> {
+  late Future<List<Evento>> futureEventos;
+  String debugInfo = "";
+  bool showDebugInfo = false;
+
+  @override
+  void initState() {
+    super.initState();
+    futureEventos = fetchEventos();
+  }
+
+  Future<List<Evento>> fetchEventos() async {
+    try {
+      final response = await http.get(
+        Uri.parse('https://www.unimet.edu.ve/eventos/'),
+        headers: {'User-Agent': 'Mozilla/5.0'},
+      );
+
+      if (response.statusCode == 200) {
+        debugInfo = "✅ HTML obtenido correctamente\n";
+        final eventos = parseEventos(response.body);
+        
+        // Filtramos eventos duplicados
+        final eventosUnicos = _filtrarEventosUnicos(eventos);
+        debugInfo += "🔄 Eventos encontrados: ${eventos.length} | Únicos: ${eventosUnicos.length}\n";
+        
+        return eventosUnicos;
+      } else {
+        throw Exception('Error HTTP: ${response.statusCode}');
+      }
+    } catch (e) {
+      debugInfo += "❌ Error: $e\n";
+      throw Exception('Error de conexión: $e');
+    }
+  }
+
+  List<Evento> _filtrarEventosUnicos(List<Evento> eventos) {
+    final eventosUnicos = <Evento>[];
+    final titulosVistos = <String>{};
+
+    for (var evento in eventos) {
+      // Normalizamos el título para mejor comparación
+      final tituloNormalizado = evento.titulo
+          .toLowerCase()
+          .replaceAll(RegExp(r'[^\w\s]'), '')
+          .trim();
+
+      if (!titulosVistos.contains(tituloNormalizado)) {
+        titulosVistos.add(tituloNormalizado);
+        eventosUnicos.add(evento);
+      } else {
+        debugInfo += "⚠ Eliminado duplicado: ${evento.titulo}\n";
+      }
+    }
+
+    return eventosUnicos;
+  }
+
+  List<Evento> parseEventos(String html) {
+    final document = parser.parse(html);
+    final eventos = <Evento>[];
+
+    // Estrategia mejorada para identificar eventos distintos
+    final eventItems = document.querySelectorAll('article, .item, .evento-item, .event');
+
+    for (var item in eventItems) {
+      try {
+        final titleElement = item.querySelector('h2, h3, .title, [itemprop="name"]');
+        final title = titleElement?.text.trim() ?? 'Evento sin título';
+
+        // Saltar elementos sin título o con título genérico
+        if (title == 'Evento sin título' || title.isEmpty) continue;
+
+        final descriptionElement = item.querySelector('.description, .content, [itemprop="description"]');
+        var description = descriptionElement?.innerHtml.trim() ?? '';
+
+        // Mejorar descripción si está vacía
+        if (description.isEmpty) {
+          final firstParagraph = item.querySelector('p:not(:has(img))');
+          description = firstParagraph?.text.trim() ?? 'No hay descripción disponible';
+        }
+
+        final dateElement = item.querySelector('.date, time, [itemprop="datePublished"]');
+        var date = dateElement?.text.trim() ?? 'Fecha no especificada';
+
+        // Limpiar formato de fecha si es necesario
+        date = date.replaceAll('\n', ' ').replaceAll(RegExp(r'\s+'), ' ').trim();
+
+        final imageElement = item.querySelector('img, [itemprop="image"]');
+        String? imageUrl = imageElement?.attributes['src'] ?? imageElement?.attributes['data-src'];
+
+        if (imageUrl != null && !imageUrl.startsWith('http')) {
+          imageUrl = 'https://www.unimet.edu.ve${imageUrl.startsWith('/') ? '' : '/'}$imageUrl';
+        }
+
+        final linkElement = item.querySelector('a[href]');
+        final link = linkElement?.attributes['href'];
+
+        eventos.add(Evento(
+          titulo: title,
+          descripcion: description,
+          fecha: date,
+          imagenUrl: imageUrl,
+          enlace: link,
+        ));
+
+        debugInfo += "➕ Evento añadido: $title\n";
+
+      } catch (e) {
+        debugInfo += "⚠ Error procesando elemento: $e\n";
+      }
+    }
+
+    // Si no encontramos eventos, intentamos una estrategia alternativa
+    if (eventos.isEmpty) {
+      debugInfo += "⚠ No se encontraron eventos con selectores principales. Intentando método alternativo...\n";
+      
+      final allHeadings = document.querySelectorAll('h2, h3');
+      for (var heading in allHeadings) {
+        try {
+          final title = heading.text.trim();
+          if (title.isEmpty) continue;
+
+          // Buscamos elementos relacionados cerca del título
+          var nextElement = heading.nextElementSibling;
+          var description = '';
+          var date = 'Fecha no especificada';
+
+          while (nextElement != null && description.isEmpty) {
+            if (nextElement.localName == 'p') {
+              description = nextElement.text.trim();
+            } else if (nextElement.querySelector('.date, time') != null) {
+              date = nextElement.querySelector('.date, time')!.text.trim();
+            }
+            nextElement = nextElement.nextElementSibling;
+          }
+
+          eventos.add(Evento(
+            titulo: title,
+            descripcion: description.isNotEmpty ? description : 'No hay descripción disponible',
+            fecha: date,
+            imagenUrl: null,
+          ));
+
+          debugInfo += "➕ Evento alternativo añadido: $title\n";
+
+        } catch (e) {
+          debugInfo += "⚠ Error procesando heading: $e\n";
+        }
+      }
+    }
+
+    return eventos;
+  }
+
+  Future<void> _refresh() async {
+    setState(() {
+      debugInfo += "\n🔄 Actualizando eventos...\n";
+      futureEventos = fetchEventos();
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: const Text('Comunicación'),
-        backgroundColor: AppColors.primary,
-        foregroundColor: Colors.white,
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Padding(
-              padding: EdgeInsets.only(bottom: 20),
-              child: Text(
-                'Próximos Eventos Importantes',
-                style: TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.primary,
-                ),
-              ),
-            ),
-            Column(
-              children: eventos.map((evento) => _buildEventBox(context, evento)).toList(),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildEventBox(BuildContext context, Evento evento) {
-    return Container(
-      width: double.infinity,
-      margin: const EdgeInsets.only(bottom: 20),
-      decoration: BoxDecoration(
-        color: evento.color,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: AppColors.primary.withOpacity(0.2),
-          width: 1,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.withOpacity(0.1),
-            spreadRadius: 2,
-            blurRadius: 4,
-            offset: const Offset(0, 2),
+        title: const Text('Eventos UNIMET'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            onPressed: _refresh,
+          ),
+          IconButton(
+            icon: const Icon(Icons.bug_report),
+            onPressed: () {
+              setState(() {
+                showDebugInfo = !showDebugInfo;
+              });
+            },
           ),
         ],
       ),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(Icons.event, color: AppColors.primary, size: 20),
-                const SizedBox(width: 8),
-                Expanded(
+      body: Column(
+        children: [
+          if (showDebugInfo)
+            Expanded(
+              flex: 1,
+              child: Container(
+                padding: const EdgeInsets.all(8),
+                color: Colors.black,
+                child: SingleChildScrollView(
                   child: Text(
-                    evento.titulo,
+                    debugInfo,
                     style: const TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            
-            if (evento.imagen != null) ...[
-              GestureDetector(
-                onTap: () => _showFullImage(context, evento.imagen!),
-                child: Hero(
-                  tag: evento.imagen!,
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(8),
-                    child: Image.asset(
-                      evento.imagen!,
-                      width: double.infinity,
-                      height: 180,
-                      fit: BoxFit.cover,
+                      color: Colors.white,
+                      fontFamily: 'monospace',
+                      fontSize: 12,
                     ),
                   ),
                 ),
               ),
-              const SizedBox(height: 12),
-            ],
-            
-            Text(
-              evento.descripcion,
-              style: const TextStyle(fontSize: 16),
             ),
-            const SizedBox(height: 12),
-            
-            if (evento.proyectos != null && evento.proyectos!.isNotEmpty) ...[
-              const Text(
-                "Proyectos disponibles:",
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 16,
-                ),
-              ),
-              ...evento.proyectos!.map((proyecto) => Padding(
-                padding: const EdgeInsets.only(left: 8, top: 4),
-                child: Text("• $proyecto"),
-              )).toList(),
-              const SizedBox(height: 12),
-            ],
-            
-            Row(
-              children: [
-                Icon(Icons.calendar_today, size: 16, color: Colors.grey[600]),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    evento.fecha,
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Colors.grey[600],
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            
-            if (evento.titulo.contains("Servicio Comunitario")) ...[
-              const SizedBox(height: 12),
-              Text(
-                "Más información: yguaimaro@unimet.edu.ve",
-                style: TextStyle(
-                  fontSize: 14,
-                  color: Colors.grey[600],
-                  fontStyle: FontStyle.italic,
-                ),
-              ),
-            ],
-          ],
-        ),
-      ),
-    );
-  }
+          if (showDebugInfo)
+            const Divider(height: 2, color: Colors.white),
+          Expanded(
+            flex: showDebugInfo ? 3 : 1,
+            child: FutureBuilder<List<Evento>>(
+              future: futureEventos,
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
 
-  void _showFullImage(BuildContext context, String imagePath) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => Scaffold(
-          backgroundColor: Colors.black,
-          appBar: AppBar(
-            backgroundColor: Colors.transparent,
-            elevation: 0,
-            leading: IconButton(
-              icon: const Icon(Icons.arrow_back, color: Colors.white),
-              onPressed: () => Navigator.pop(context),
+                if (snapshot.hasError) {
+                  return Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(Icons.error, size: 50, color: Colors.red),
+                        const SizedBox(height: 16),
+                        Text(
+                          'Error: ${snapshot.error}',
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 16),
+                        ElevatedButton(
+                          onPressed: _refresh,
+                          child: const Text('Reintentar'),
+                        ),
+                      ],
+                    ),
+                  );
+                }
+
+                if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                  return const Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.event_available, size: 50),
+                        SizedBox(height: 16),
+                        Text('No se encontraron eventos'),
+                      ],
+                    ),
+                  );
+                }
+
+                return ListView.builder(
+                  itemCount: snapshot.data!.length,
+                  itemBuilder: (context, index) {
+                    final evento = snapshot.data![index];
+                    return Card(
+                      margin: const EdgeInsets.all(8),
+                      child: Padding(
+                        padding: const EdgeInsets.all(12),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              evento.titulo,
+                              style: const TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Row(
+                              children: [
+                                const Icon(Icons.calendar_today, size: 16),
+                                const SizedBox(width: 8),
+                                Text(evento.fecha),
+                              ],
+                            ),
+                            const SizedBox(height: 12),
+                            Html(data: evento.descripcion),
+                            if (evento.enlace != null) ...[
+                              const SizedBox(height: 8),
+                              const Text(
+                                'Más información',
+                                style: TextStyle(
+                                  color: Colors.blue,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                );
+              },
             ),
           ),
-          body: Center(
-            child: InteractiveViewer(
-              panEnabled: true,
-              minScale: 1.0,
-              maxScale: 5.0,
-              child: Image.asset(
-                imagePath,
-                width: MediaQuery.of(context).size.width,
-                fit: BoxFit.contain,
-              ),
-            ),
-          ),
-        ),
+        ],
       ),
     );
   }
@@ -227,16 +314,14 @@ class Evento {
   final String titulo;
   final String descripcion;
   final String fecha;
-  final Color color;
-  final String? imagen;
-  final List<String>? proyectos;
+  final String? imagenUrl;
+  final String? enlace;
 
   const Evento({
     required this.titulo,
     required this.descripcion,
     required this.fecha,
-    this.color = Colors.white,
-    this.imagen,
-    this.proyectos,
+    this.imagenUrl,
+    this.enlace,
   });
 }
