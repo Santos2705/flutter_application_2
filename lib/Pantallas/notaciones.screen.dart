@@ -163,7 +163,7 @@ class _NotacionesExampleState extends State<NotacionesExample> {
           _trimestreSeleccionado == null
               ? 'Anotaciones de Trimestres'
               : 'Materias del Trimestre',
-          style: TextStyle(fontSize: 18), // Reducir tamaño de fuente
+          style: TextStyle(fontSize: 18),
         ),
         leading: _trimestreSeleccionado != null
             ? IconButton(
@@ -243,11 +243,11 @@ class _NotacionesExampleState extends State<NotacionesExample> {
                                     Icon(Icons.star, color: Colors.orange),
                                     SizedBox(width: 8),
                                     Text(
-                                      'Promedio del trimestre: ${_promedioTrimestre.toStringAsFixed(2)}',
+                                      'Promedio del trimestre: ${_promedioTrimestre.toStringAsFixed(2)}',
                                       style: TextStyle(
                                         fontSize: 18,
                                         fontWeight: FontWeight.bold,
-                                        color: Colors.orange[0xFFFF8200],
+                                        color: Colors.orange[800],
                                       ),
                                     ),
                                   ],
@@ -304,7 +304,6 @@ class _NotacionesExampleState extends State<NotacionesExample> {
           ],
         ),
         const SizedBox(height: 10),
-        // Botón de promedio eliminado de la lista de trimestres
         const SizedBox(height: 20),
         Expanded(
           child: _trimestres.isEmpty
@@ -329,7 +328,7 @@ class _NotacionesExampleState extends State<NotacionesExample> {
                           trimestre['nombre'],
                           style: TextStyle(
                             fontWeight: FontWeight.bold,
-                            color: Colors.orange[0xFFFF8200],
+                            color: Colors.orange[800],
                           ),
                         ),
                         subtitle:
@@ -356,10 +355,10 @@ class _NotacionesExampleState extends State<NotacionesExample> {
                             _mostrarPromedio = false;
                           });
                         },
-                      ), // Cierra ListTile
-                    ); // Cierra Card
-                  }, // Cierra itemBuilder
-                ), // Cierra ListView.builder
+                      ),
+                    );
+                  },
+                ),
         ),
       ],
     );
@@ -526,7 +525,7 @@ class _MateriasDelTrimestreState extends State<MateriasDelTrimestre> {
     if (nota < 0 || nota > 20) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('La nota debe se menor o igual a 20'),
+          content: Text('La nota debe estar entre 0 y 20'),
           backgroundColor: Colors.red,
         ),
       );
@@ -629,19 +628,15 @@ class _MateriasDelTrimestreState extends State<MateriasDelTrimestre> {
     }
   }
 
-  double _calcularPromedio(int materiaIndex) {
-    // Suma ponderada de notas sobre 20
+  double _calcularTotalAcumulado(int materiaIndex) {
     final evaluaciones = _materias[materiaIndex].evaluaciones;
     if (evaluaciones.isEmpty) return 0.0;
-    double sumaPonderada = 0.0;
-    double sumaPorcentajes = 0.0;
+    
+    double total = 0.0;
     for (var eval in evaluaciones) {
-      sumaPonderada += eval.nota * eval.porcentaje;
-      sumaPorcentajes += eval.porcentaje;
+      total += (eval.nota * eval.porcentaje) / 100;
     }
-    if (sumaPorcentajes == 0) return 0.0;
-    // El promedio final es sobre 20
-    return (sumaPonderada / sumaPorcentajes);
+    return total;
   }
 
   @override
@@ -683,7 +678,7 @@ class _MateriasDelTrimestreState extends State<MateriasDelTrimestre> {
             style: TextStyle(
               fontSize: 25,
               fontWeight: FontWeight.bold,
-              color: Colors.orange[0xFFFF8200],
+              color: Colors.orange[800],
             ),
           ),
         ),
@@ -765,7 +760,6 @@ class _MateriasDelTrimestreState extends State<MateriasDelTrimestre> {
             ),
           ),
         ),
-        // Botón de PROMEDIO (mayúscula) eliminado, solo queda el de Promedio pequeño
         const SizedBox(height: 20),
         Expanded(
           child: _materias.isEmpty
@@ -956,7 +950,7 @@ class _MateriasDelTrimestreState extends State<MateriasDelTrimestre> {
                             Padding(
                               padding: const EdgeInsets.only(top: 10),
                               child: Text(
-                                'Total acumulado: ${_calcularPromedio(materiaIndex).toStringAsFixed(1)} pts',
+                                'Total acumulado: ${_calcularTotalAcumulado(materiaIndex).toStringAsFixed(1)} pts',
                                 style: const TextStyle(
                                   fontWeight: FontWeight.bold,
                                   fontSize: 16,
