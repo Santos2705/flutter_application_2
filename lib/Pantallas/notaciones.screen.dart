@@ -333,11 +333,11 @@ class _NotacionesExampleState extends State<NotacionesExample> {
                         ),
                         subtitle:
                             trimestre['fecha_inicio'] != null ||
-                                    trimestre['fecha_fin'] != null
-                                ? Text(
-                                    '${trimestre['fecha_inicio'] ?? 'Sin fecha'} - ${trimestre['fecha_fin'] ?? 'Sin fecha'}',
-                                  )
-                                : null,
+                                trimestre['fecha_fin'] != null
+                            ? Text(
+                                '${trimestre['fecha_inicio'] ?? 'Sin fecha'} - ${trimestre['fecha_fin'] ?? 'Sin fecha'}',
+                              )
+                            : null,
                         trailing: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
@@ -631,7 +631,7 @@ class _MateriasDelTrimestreState extends State<MateriasDelTrimestre> {
   double _calcularTotalAcumulado(int materiaIndex) {
     final evaluaciones = _materias[materiaIndex].evaluaciones;
     if (evaluaciones.isEmpty) return 0.0;
-    
+
     double total = 0.0;
     for (var eval in evaluaciones) {
       total += (eval.nota * eval.porcentaje) / 100;
@@ -740,7 +740,9 @@ class _MateriasDelTrimestreState extends State<MateriasDelTrimestre> {
                   context: context,
                   builder: (context) => AlertDialog(
                     title: const Text('Promedio de Materias'),
-                    content: Text('El promedio de todas las materias es: ${promedio.toStringAsFixed(2)}'),
+                    content: Text(
+                      'El promedio de tu trimestre es: ${promedio.toStringAsFixed(2)}',
+                    ),
                     actions: [
                       TextButton(
                         onPressed: () => Navigator.pop(context),

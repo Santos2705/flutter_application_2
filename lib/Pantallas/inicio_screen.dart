@@ -60,7 +60,9 @@ class _InicioExampleState extends State<InicioExample> {
     for (var weekTasks in _weeklyTasks.values) {
       for (var task in weekTasks) {
         if (task['fecha'] != null) {
-          dates.add(DateTime.parse(task['fecha']));
+          // Normalizamos la fecha para ignorar la hora
+          final date = DateTime.parse(task['fecha']);
+          dates.add(DateTime(date.year, date.month, date.day));
         }
       }
     }
@@ -283,6 +285,7 @@ class _InicioExampleState extends State<InicioExample> {
     }
 
     final taskDates = _getTaskDates();
+    debugPrint('Días con tareas: ${taskDates.length}');
 
     return Scaffold(
       body: SingleChildScrollView(
@@ -540,7 +543,7 @@ class _InicioExampleState extends State<InicioExample> {
                       },
                       calendarBuilders: CalendarBuilders(
                         markerBuilder: (context, date, events) {
-                          if (taskDates.contains(date)) {
+                          if (taskDates.any((d) => isSameDay(d, date))) {
                             return Positioned(
                               right: 1,
                               bottom: 1,
@@ -556,6 +559,38 @@ class _InicioExampleState extends State<InicioExample> {
                           }
                           return null;
                         },
+                        defaultBuilder: (context, date, events) {
+                          final hasTasks = taskDates.any(
+                            (d) => isSameDay(d, date),
+                          );
+                          return Container(
+                            margin: const EdgeInsets.all(4),
+                            decoration: BoxDecoration(
+                              color: hasTasks
+                                  ? Colors.orange.withAlpha(50)
+                                  : null,
+                              shape: BoxShape.circle,
+                              border: hasTasks
+                                  ? Border.all(color: Colors.orange, width: 1)
+                                  : null,
+                            ),
+                            child: Center(
+                              child: Text(
+                                '${date.day}',
+                                style: TextStyle(
+                                  color: isSameDay(date, DateTime.now())
+                                      ? Colors.orange
+                                      : hasTasks
+                                      ? Colors.orange
+                                      : null,
+                                  fontWeight: hasTasks
+                                      ? FontWeight.bold
+                                      : FontWeight.normal,
+                                ),
+                              ),
+                            ),
+                          );
+                        },
                       ),
                       calendarStyle: CalendarStyle(
                         selectedDecoration: BoxDecoration(
@@ -563,8 +598,16 @@ class _InicioExampleState extends State<InicioExample> {
                           shape: BoxShape.circle,
                         ),
                         todayDecoration: BoxDecoration(
-                          color: Colors.orange.withOpacity(0.5),
+                          color: Colors.orange.withAlpha(128),
                           shape: BoxShape.circle,
+                        ),
+                        selectedTextStyle: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                        ),
+                        todayTextStyle: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
                         ),
                       ),
                       headerStyle: HeaderStyle(
@@ -572,20 +615,20 @@ class _InicioExampleState extends State<InicioExample> {
                         titleCentered: true,
                         leftChevronIcon: Icon(
                           Icons.chevron_left,
-                          color: Colors.orange,
+                          color: Colors.orange[800],
                         ),
                         rightChevronIcon: Icon(
                           Icons.chevron_right,
-                          color: Colors.orange,
+                          color: Colors.orange[800],
                         ),
                         titleTextStyle: TextStyle(
-                          color: Colors.orange,
+                          color: Colors.orange[800],
                           fontWeight: FontWeight.bold,
                         ),
                       ),
                       daysOfWeekStyle: DaysOfWeekStyle(
-                        weekdayStyle: TextStyle(color: Colors.orange),
-                        weekendStyle: TextStyle(color: Colors.orange),
+                        weekdayStyle: TextStyle(color: Colors.orange[800]),
+                        weekendStyle: TextStyle(color: Colors.orange[800]),
                       ),
                     ),
                     if (_selectedDay != null)
@@ -607,4 +650,3 @@ class _InicioExampleState extends State<InicioExample> {
     );
   }
 }
-
