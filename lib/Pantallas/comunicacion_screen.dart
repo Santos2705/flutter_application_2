@@ -3,6 +3,7 @@ import 'package:http/http.dart' as http;
 import 'package:html/parser.dart' as parser;
 import 'package:flutter_html/flutter_html.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:photo_view/photo_view.dart';
 
 class ComunicacionScreen extends StatefulWidget {
   const ComunicacionScreen({super.key, String? username});
@@ -32,31 +33,28 @@ class _ComunicacionScreenState extends State<ComunicacionScreen> {
       if (response.statusCode == 200) {
         debugInfo = "✅ HTML obtenido correctamente (${response.body.length} bytes)\n";
         
-        // Primero intentamos con la estrategia más específica
         final eventosEstrategia1 = parseEventosEstrategia1(response.body);
         if (eventosEstrategia1.isNotEmpty) {
           debugInfo += "🔄 Eventos encontrados (Estrategia 1): ${eventosEstrategia1.length}\n";
-          final eventosFiltrados = _filtrarDuplicados(eventosEstrategia1);
+          final eventosFiltrados = _filtrarEventos(eventosEstrategia1);
           debugInfo += "🔍 Eventos después de filtrar: ${eventosFiltrados.length}\n";
           return eventosFiltrados;
         }
         
-        // Si no hay resultados, probamos con estrategia alternativa
         debugInfo += "⚠ No se encontraron eventos con Estrategia 1\n";
         final eventosEstrategia2 = parseEventosEstrategia2(response.body);
         debugInfo += "🔄 Eventos encontrados (Estrategia 2): ${eventosEstrategia2.length}\n";
-        final eventosFiltradosAlt = _filtrarDuplicados(eventosEstrategia2);
+        final eventosFiltradosAlt = _filtrarEventos(eventosEstrategia2);
         debugInfo += "🔍 Eventos después de filtrar: ${eventosFiltradosAlt.length}\n";
         
         if (eventosFiltradosAlt.isNotEmpty) {
           return eventosFiltradosAlt;
         }
         
-        // Último recurso: búsqueda por patrones
         debugInfo += "⚠ No se encontraron eventos con Estrategia 2\n";
         final eventosPatron = parseEventosPorPatron(response.body);
         debugInfo += "🔄 Eventos encontrados (Patrón): ${eventosPatron.length}\n";
-        final eventosFiltradosPatron = _filtrarDuplicados(eventosPatron);
+        final eventosFiltradosPatron = _filtrarEventos(eventosPatron);
         debugInfo += "🔍 Eventos después de filtrar: ${eventosFiltradosPatron.length}\n";
         
         return eventosFiltradosPatron;
@@ -69,12 +67,33 @@ class _ComunicacionScreenState extends State<ComunicacionScreen> {
     }
   }
 
-  List<Evento> _filtrarDuplicados(List<Evento> eventos) {
+  bool _esTituloExcluido(String titulo) {
+    final titulosExcluidos = [
+      'Información',
+      '¿Qué hacemos?',
+      'Vías de ingreso',
+      'Información, que hacemos y vías de ingreso',
+      'Gerencia',
+      'Diplomados',
+      'Prueba Diagnóstica de Ubicación (PDU)',
+    ];
+    
+    final tituloNormalizado = _normalizarTexto(titulo);
+    return titulosExcluidos.any((excluido) => 
+        tituloNormalizado == _normalizarTexto(excluido) ||
+        tituloNormalizado.contains(_normalizarTexto(excluido)));
+  }
+
+  List<Evento> _filtrarEventos(List<Evento> eventos) {
     final eventosUnicos = <Evento>[];
     final clavesVistas = <String>{};
 
     for (var evento in eventos) {
-      // Crear una clave única más robusta que considere título, fecha y descripción
+      if (_esTituloExcluido(evento.titulo)) {
+        debugInfo += "🚫 Evento excluido por título: ${evento.titulo}\n";
+        continue;
+      }
+
       final claveUnica = '${_normalizarTexto(evento.titulo)}'
           '-${_normalizarFecha(evento.fecha)}'
           '-${_normalizarTexto(evento.descripcion).length}';
@@ -93,13 +112,12 @@ class _ComunicacionScreenState extends State<ComunicacionScreen> {
   String _normalizarTexto(String texto) {
     return texto.toLowerCase()
       .trim()
-      .replaceAll(RegExp(r'[^\w\s]'), '')
+      .replaceAll(RegExp(r'[^\w\sáéíóúñ]'), '')
       .replaceAll(RegExp(r'\s+'), ' ');
   }
 
   String _normalizarFecha(String fecha) {
     try {
-      // Extraer solo la parte de la fecha (ignorar horas si existen)
       return fecha.toLowerCase()
         .trim()
         .replaceAll(RegExp(r'[^\w\s]'), '')
@@ -114,27 +132,63 @@ class _ComunicacionScreenState extends State<ComunicacionScreen> {
     final document = parser.parse(html);
     final eventos = <Evento>[];
 
-    // Selectores específicos para eventos
     final items = document.querySelectorAll('.tribe-events-list__event, article.event, .evento-item');
 
     for (var item in items) {
       try {
         final titleElement = item.querySelector('.tribe-events-list-event-title, h2, h3');
         final title = titleElement?.text.trim() ?? 'Evento sin título';
-        if (title.isEmpty) continue;
+        if (title.isEmpty || _esTituloExcluido(title)) continue;
 
-        final descriptionElement = item.querySelector('.tribe-events-list-event-description, .description');
-        var description = descriptionElement?.innerHtml.trim() ?? '';
+        // Extracción mejorada de descripción
+        String description = '';
+        final descriptionElement = item.querySelector('.tribe-events-list-event-description, .description, .event-description');
+        
+        if (descriptionElement != null) {
+          // Primero intentamos obtener el HTML completo
+          description = descriptionElement.innerHtml.trim();
+          
+          // Si no hay HTML, intentamos obtener el texto
+          if (description.isEmpty) {
+            description = descriptionElement.text.trim();
+          }
+        }
+        
+        // Si aún no hay descripción, buscamos en párrafos cercanos
+        if (description.isEmpty) {
+          var nextElement = titleElement?.nextElementSibling;
+          while (nextElement != null && description.isEmpty) {
+            if (nextElement.localName == 'p' || 
+                nextElement.classes.contains('event-details') ||
+                nextElement.classes.contains('event-content')) {
+              description = nextElement.text.trim();
+            }
+            nextElement = nextElement.nextElementSibling;
+          }
+        }
+
+        // Si sigue vacío, buscamos cualquier párrafo dentro del item
         if (description.isEmpty) {
           final firstParagraph = item.querySelector('p');
           description = firstParagraph?.text.trim() ?? 'Descripción no disponible';
         }
 
-        final dateElement = item.querySelector('.tribe-event-date, .event-date, time');
-        var date = dateElement?.text.trim() ?? 'Fecha no especificada';
-        date = date.replaceAll('\n', ' ').replaceAll(RegExp(r'\s+'), ' ').trim();
+        // Limpieza de la descripción
+        description = _limpiarDescripcion(description);
 
-        // Extracción de imagen mejorada
+        String fecha = 'Evento sin fecha';
+        final dateElement = item.querySelector('.tribe-event-date, .event-date, time, .fecha-evento');
+        
+        if (dateElement != null) {
+          fecha = dateElement.text.trim();
+          fecha = fecha.replaceAll('\n', ' ').replaceAll(RegExp(r'\s+'), ' ').trim();
+          
+          final dateRegex = RegExp(r'\d{1,2}[/\-]\d{1,2}[/\-]\d{2,4}|\d{1,2}\s+(?:ene|feb|mar|abr|may|jun|jul|ago|sep|oct|nov|dic)[a-z]*\s+\d{4}', caseSensitive: false);
+          if (!dateRegex.hasMatch(fecha)) {
+            fecha = 'Evento sin fecha';
+          }
+        }
+
         String? imageUrl;
         final imageElement = item.querySelector('.tribe-events-event-image img, .event-image img');
         if (imageElement != null) {
@@ -153,7 +207,7 @@ class _ComunicacionScreenState extends State<ComunicacionScreen> {
         eventos.add(Evento(
           titulo: title,
           descripcion: description,
-          fecha: date,
+          fecha: fecha,
           imagenUrl: imageUrl,
           enlace: link,
         ));
@@ -165,37 +219,71 @@ class _ComunicacionScreenState extends State<ComunicacionScreen> {
     return eventos;
   }
 
+  String _limpiarDescripcion(String descripcion) {
+    // Eliminar múltiples espacios en blanco
+    descripcion = descripcion.replaceAll(RegExp(r'\s+'), ' ');
+    
+    // Eliminar texto no deseado que pueda aparecer
+    descripcion = descripcion.replaceAll('Leer más', '');
+    descripcion = descripcion.replaceAll('Ver más', '');
+    descripcion = descripcion.replaceAll('Más información', '');
+    
+    return descripcion.trim();
+  }
+
   List<Evento> parseEventosEstrategia2(String html) {
     final document = parser.parse(html);
     final eventos = <Evento>[];
 
-    // Estrategia más genérica para eventos
     final items = document.querySelectorAll('article, .item, .evento');
 
     for (var item in items) {
       try {
-        // Saltar contenedores que contengan otros artículos
         if (item.querySelector('article') != null) continue;
 
         final titleElement = item.querySelector('h2, h3, .title');
         final title = titleElement?.text.trim() ?? 'Evento sin título';
-        if (title.isEmpty) continue;
+        if (title.isEmpty || _esTituloExcluido(title)) continue;
 
-        final descriptionElement = item.querySelector('.content, .descripcion, p');
-        var description = descriptionElement?.innerHtml.trim() ?? '';
+        // Extracción mejorada de descripción
+        String description = '';
+        final descriptionElement = item.querySelector('.content, .descripcion, .event-content, .entry-content');
+        
+        if (descriptionElement != null) {
+          description = descriptionElement.innerHtml.trim();
+          if (description.isEmpty) {
+            description = descriptionElement.text.trim();
+          }
+        }
+        
+        // Búsqueda alternativa de descripción
         if (description.isEmpty) {
-          var next = titleElement?.nextElementSibling;
-          while (next != null && description.isEmpty) {
-            if (next.localName == 'p') {
-              description = next.text.trim();
+          var nextElement = titleElement?.nextElementSibling;
+          while (nextElement != null && description.isEmpty) {
+            if (nextElement.localName == 'p' || 
+                nextElement.localName == 'div' ||
+                nextElement.classes.contains('event-details')) {
+              description = nextElement.text.trim();
             }
-            next = next.nextElementSibling;
+            nextElement = nextElement.nextElementSibling;
           }
         }
 
-        final dateElement = item.querySelector('.date, time, .meta');
-        var date = dateElement?.text.trim() ?? 'Fecha no especificada';
-        date = date.replaceAll('\n', ' ').replaceAll(RegExp(r'\s+'), ' ').trim();
+        // Limpieza de la descripción
+        description = _limpiarDescripcion(description);
+
+        String fecha = 'Evento sin fecha';
+        final dateElement = item.querySelector('.date, time, .meta, .fecha');
+        
+        if (dateElement != null) {
+          fecha = dateElement.text.trim();
+          fecha = fecha.replaceAll('\n', ' ').replaceAll(RegExp(r'\s+'), ' ').trim();
+          
+          final dateRegex = RegExp(r'\d{1,2}[/\-]\d{1,2}[/\-]\d{2,4}|\d{1,2}\s+(?:ene|feb|mar|abr|may|jun|jul|ago|sep|oct|nov|dic)[a-z]*\s+\d{4}', caseSensitive: false);
+          if (!dateRegex.hasMatch(fecha)) {
+            fecha = 'Evento sin fecha';
+          }
+        }
 
         String? imageUrl;
         final imageElement = item.querySelector('img');
@@ -213,8 +301,8 @@ class _ComunicacionScreenState extends State<ComunicacionScreen> {
 
         eventos.add(Evento(
           titulo: title,
-          descripcion: description,
-          fecha: date,
+          descripcion: description.isNotEmpty ? description : 'No hay descripción disponible',
+          fecha: fecha,
           imagenUrl: imageUrl,
           enlace: link,
         ));
@@ -230,39 +318,49 @@ class _ComunicacionScreenState extends State<ComunicacionScreen> {
     final eventos = <Evento>[];
     final document = parser.parse(html);
 
-    // Búsqueda por patrones genéricos
     final possibleEvents = document.querySelectorAll('div, section, article');
 
     for (var item in possibleEvents) {
       try {
         final titleElement = item.querySelector('h2, h3, h4');
         final title = titleElement?.text.trim();
-        if (title == null || title.isEmpty) continue;
+        if (title == null || title.isEmpty || _esTituloExcluido(title)) continue;
 
-        // Buscar fecha
-        var date = 'Fecha no especificada';
-        var dateElement = item.querySelector('time, .date, .fecha');
-        if (dateElement != null) {
-          date = dateElement.text.trim();
-        } else {
-          final dateRegex = RegExp(r'\d{1,2}\s+(?:ene|feb|mar|abr|may|jun|jul|ago|sep|oct|nov|dic)[a-z]*\s+\d{4}', caseSensitive: false);
-          final dateMatch = dateRegex.firstMatch(item.text);
-          if (dateMatch != null) {
-            date = dateMatch.group(0)!;
-          }
-        }
-
-        // Buscar descripción
-        var description = '';
+        // Extracción mejorada de descripción
+        String description = '';
         var descElement = titleElement?.nextElementSibling;
-        while (descElement != null && description.isEmpty) {
-          if (descElement.localName == 'p') {
-            description = descElement.text.trim();
+        
+        while (descElement != null && (description.isEmpty || description.length < 20)) {
+          if (descElement.localName == 'p' || 
+              descElement.localName == 'div' ||
+              descElement.classes.contains('description') ||
+              descElement.classes.contains('content')) {
+            description += '${descElement.text.trim()}\n';
           }
           descElement = descElement.nextElementSibling;
         }
 
-        // Buscar imagen
+        // Limpieza de la descripción
+        description = _limpiarDescripcion(description);
+
+        String fecha = 'Evento sin fecha';
+        var dateElement = item.querySelector('time, .date, .fecha');
+        
+        if (dateElement != null) {
+          fecha = dateElement.text.trim();
+          
+          final dateRegex = RegExp(r'\d{1,2}[/\-]\d{1,2}[/\-]\d{2,4}|\d{1,2}\s+(?:ene|feb|mar|abr|may|jun|jul|ago|sep|oct|nov|dic)[a-z]*\s+\d{4}', caseSensitive: false);
+          if (!dateRegex.hasMatch(fecha)) {
+            fecha = 'Evento sin fecha';
+          }
+        } else {
+          final dateRegex = RegExp(r'\d{1,2}\s+(?:ene|feb|mar|abr|may|jun|jul|ago|sep|oct|nov|dic)[a-z]*\s+\d{4}', caseSensitive: false);
+          final dateMatch = dateRegex.firstMatch(item.text);
+          if (dateMatch != null) {
+            fecha = dateMatch.group(0)!;
+          }
+        }
+
         String? imageUrl;
         final imageElement = item.querySelector('img');
         if (imageElement != null) {
@@ -275,7 +373,7 @@ class _ComunicacionScreenState extends State<ComunicacionScreen> {
         eventos.add(Evento(
           titulo: title,
           descripcion: description.isNotEmpty ? description : 'No hay descripción disponible',
-          fecha: date,
+          fecha: fecha,
           imagenUrl: imageUrl,
           enlace: null,
         ));
@@ -294,6 +392,35 @@ class _ComunicacionScreenState extends State<ComunicacionScreen> {
       debugInfo += "\n🔄 Actualizando eventos...\n";
       futureEventos = fetchEventos();
     });
+  }
+
+  void _mostrarImagenAmpliada(BuildContext context, String imageUrl) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => Scaffold(
+          appBar: AppBar(
+            title: const Text('Imagen del evento'),
+            backgroundColor: Colors.black,
+            actions: [
+              IconButton(
+                icon: const Icon(Icons.close),
+                onPressed: () => Navigator.of(context).pop(),
+              ),
+            ],
+          ),
+          body: Container(
+            color: Colors.black,
+            child: PhotoView(
+              imageProvider: NetworkImage(imageUrl),
+              minScale: PhotoViewComputedScale.contained,
+              maxScale: PhotoViewComputedScale.covered * 2,
+              initialScale: PhotoViewComputedScale.contained,
+              heroAttributes: PhotoViewHeroAttributes(tag: imageUrl),
+            ),
+          ),
+        ),
+      ),
+    );
   }
 
   @override
@@ -396,18 +523,24 @@ class _ComunicacionScreenState extends State<ComunicacionScreen> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             if (evento.imagenUrl != null)
-                              CachedNetworkImage(
-                                imageUrl: evento.imagenUrl!,
-                                height: 180,
-                                width: double.infinity,
-                                fit: BoxFit.cover,
-                                placeholder: (_, __) => Container(
-                                  color: Colors.grey[200],
-                                  child: const Center(child: CircularProgressIndicator()),
-                                ),
-                                errorWidget: (_, __, ___) => Container(
-                                  color: Colors.grey[200],
-                                  child: const Center(child: Icon(Icons.broken_image)),
+                              GestureDetector(
+                                onTap: () => _mostrarImagenAmpliada(context, evento.imagenUrl!),
+                                child: Hero(
+                                  tag: evento.imagenUrl!,
+                                  child: CachedNetworkImage(
+                                    imageUrl: evento.imagenUrl!,
+                                    height: 180,
+                                    width: double.infinity,
+                                    fit: BoxFit.cover,
+                                    placeholder: (_, __) => Container(
+                                      color: Colors.grey[200],
+                                      child: const Center(child: CircularProgressIndicator()),
+                                    ),
+                                    errorWidget: (_, __, ___) => Container(
+                                      color: Colors.grey[200],
+                                      child: const Center(child: Icon(Icons.broken_image)),
+                                    ),
+                                  ),
                                 ),
                               ),
                             Padding(
@@ -427,17 +560,33 @@ class _ComunicacionScreenState extends State<ComunicacionScreen> {
                                     children: [
                                       const Icon(Icons.calendar_today, size: 16),
                                       const SizedBox(width: 8),
-                                      Text(evento.fecha),
+                                      Text(
+                                        evento.fecha,
+                                        style: TextStyle(
+                                          color: evento.fecha == 'Evento sin fecha' 
+                                              ? Colors.grey 
+                                              : Colors.black,
+                                          fontStyle: evento.fecha == 'Evento sin fecha'
+                                              ? FontStyle.italic
+                                              : FontStyle.normal,
+                                        ),
+                                      ),
                                     ],
                                   ),
                                   const SizedBox(height: 12),
-                                  Html(data: evento.descripcion),
+                                  // Mostrar descripción mejorada
+                                  if (evento.descripcion.isNotEmpty && evento.descripcion != 'No hay descripción disponible')
+                                    Padding(
+                                      padding: const EdgeInsets.only(bottom: 8),
+                                      child: Text(
+                                        evento.descripcion,
+                                        style: const TextStyle(fontSize: 14),
+                                      ),
+                                    ),
                                   if (evento.enlace != null) ...[
                                     const SizedBox(height: 8),
                                     InkWell(
-                                      onTap: () {
-                                        // Aquí puedes agregar la navegación
-                                      },
+                                      onTap: () {},
                                       child: const Text(
                                         'Más información',
                                         style: TextStyle(
