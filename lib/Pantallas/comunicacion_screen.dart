@@ -145,16 +145,12 @@ class _ComunicacionScreenState extends State<ComunicacionScreen> {
         final descriptionElement = item.querySelector('.tribe-events-list-event-description, .description, .event-description');
         
         if (descriptionElement != null) {
-          // Primero intentamos obtener el HTML completo
           description = descriptionElement.innerHtml.trim();
-          
-          // Si no hay HTML, intentamos obtener el texto
           if (description.isEmpty) {
             description = descriptionElement.text.trim();
           }
         }
         
-        // Si aún no hay descripción, buscamos en párrafos cercanos
         if (description.isEmpty) {
           var nextElement = titleElement?.nextElementSibling;
           while (nextElement != null && description.isEmpty) {
@@ -167,13 +163,11 @@ class _ComunicacionScreenState extends State<ComunicacionScreen> {
           }
         }
 
-        // Si sigue vacío, buscamos cualquier párrafo dentro del item
         if (description.isEmpty) {
           final firstParagraph = item.querySelector('p');
           description = firstParagraph?.text.trim() ?? 'Descripción no disponible';
         }
 
-        // Limpieza de la descripción
         description = _limpiarDescripcion(description);
 
         String fecha = 'Evento sin fecha';
@@ -220,14 +214,10 @@ class _ComunicacionScreenState extends State<ComunicacionScreen> {
   }
 
   String _limpiarDescripcion(String descripcion) {
-    // Eliminar múltiples espacios en blanco
     descripcion = descripcion.replaceAll(RegExp(r'\s+'), ' ');
-    
-    // Eliminar texto no deseado que pueda aparecer
     descripcion = descripcion.replaceAll('Leer más', '');
     descripcion = descripcion.replaceAll('Ver más', '');
     descripcion = descripcion.replaceAll('Más información', '');
-    
     return descripcion.trim();
   }
 
@@ -245,7 +235,6 @@ class _ComunicacionScreenState extends State<ComunicacionScreen> {
         final title = titleElement?.text.trim() ?? 'Evento sin título';
         if (title.isEmpty || _esTituloExcluido(title)) continue;
 
-        // Extracción mejorada de descripción
         String description = '';
         final descriptionElement = item.querySelector('.content, .descripcion, .event-content, .entry-content');
         
@@ -256,7 +245,6 @@ class _ComunicacionScreenState extends State<ComunicacionScreen> {
           }
         }
         
-        // Búsqueda alternativa de descripción
         if (description.isEmpty) {
           var nextElement = titleElement?.nextElementSibling;
           while (nextElement != null && description.isEmpty) {
@@ -269,7 +257,6 @@ class _ComunicacionScreenState extends State<ComunicacionScreen> {
           }
         }
 
-        // Limpieza de la descripción
         description = _limpiarDescripcion(description);
 
         String fecha = 'Evento sin fecha';
@@ -326,7 +313,6 @@ class _ComunicacionScreenState extends State<ComunicacionScreen> {
         final title = titleElement?.text.trim();
         if (title == null || title.isEmpty || _esTituloExcluido(title)) continue;
 
-        // Extracción mejorada de descripción
         String description = '';
         var descElement = titleElement?.nextElementSibling;
         
@@ -340,7 +326,6 @@ class _ComunicacionScreenState extends State<ComunicacionScreen> {
           descElement = descElement.nextElementSibling;
         }
 
-        // Limpieza de la descripción
         description = _limpiarDescripcion(description);
 
         String fecha = 'Evento sin fecha';
@@ -555,29 +540,25 @@ class _ComunicacionScreenState extends State<ComunicacionScreen> {
                                       fontWeight: FontWeight.bold,
                                     ),
                                   ),
-                                  const SizedBox(height: 8),
-                                  Row(
-                                    children: [
-                                      const Icon(Icons.calendar_today, size: 16),
-                                      const SizedBox(width: 8),
-                                      Text(
-                                        evento.fecha,
-                                        style: TextStyle(
-                                          color: evento.fecha == 'Evento sin fecha' 
-                                              ? Colors.grey 
-                                              : Colors.black,
-                                          fontStyle: evento.fecha == 'Evento sin fecha'
-                                              ? FontStyle.italic
-                                              : FontStyle.normal,
-                                        ),
+                                  if (evento.fecha != 'Evento sin fecha')
+                                    Padding(
+                                      padding: const EdgeInsets.only(top: 8),
+                                      child: Row(
+                                        children: [
+                                          const Icon(Icons.calendar_today, size: 16),
+                                          const SizedBox(width: 8),
+                                          Text(
+                                            evento.fecha,
+                                            style: const TextStyle(
+                                              color: Colors.black,
+                                            ),
+                                          ),
+                                        ],
                                       ),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 12),
-                                  // Mostrar descripción mejorada
+                                    ),
                                   if (evento.descripcion.isNotEmpty && evento.descripcion != 'No hay descripción disponible')
                                     Padding(
-                                      padding: const EdgeInsets.only(bottom: 8),
+                                      padding: const EdgeInsets.only(top: 12),
                                       child: Text(
                                         evento.descripcion,
                                         style: const TextStyle(fontSize: 14),
