@@ -434,8 +434,20 @@ class _InicioExampleState extends State<InicioExample> {
                             color: Colors.orange,
                           ),
                         ),
-                        IconButton(
-                          icon: const Icon(Icons.add, color: Colors.orange),
+                        ElevatedButton.icon(
+                          icon: const Icon(Icons.add, size: 20),
+                          label: const Text('Agregar Tarea'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.orange,
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 8,
+                            ),
+                          ),
                           onPressed: _showAddTaskDialog,
                         ),
                       ],
