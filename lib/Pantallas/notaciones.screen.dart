@@ -392,6 +392,7 @@ class _MateriasDelTrimestreState extends State<MateriasDelTrimestre> {
   final List<TextEditingController> _porcentajeControllers = [];
   final List<TextEditingController> _notaControllers = [];
   bool _isLoading = true;
+  final Map<int, TextEditingController> _editMateriaControllers = {};
 
   @override
   void initState() {
@@ -416,6 +417,7 @@ class _MateriasDelTrimestreState extends State<MateriasDelTrimestre> {
       _evalControllers.clear();
       _porcentajeControllers.clear();
       _notaControllers.clear();
+      _editMateriaControllers.clear();
 
       for (var materiaDB in materiasDB) {
         final evaluacionesDB = await DatabaseHelper.instance
@@ -437,6 +439,9 @@ class _MateriasDelTrimestreState extends State<MateriasDelTrimestre> {
         _evalControllers.add(TextEditingController());
         _porcentajeControllers.add(TextEditingController());
         _notaControllers.add(TextEditingController());
+        _editMateriaControllers[materia.id] = TextEditingController(
+          text: materia.nombre,
+        );
       }
     } catch (e) {
       debugPrint('Error al cargar materias: $e');
@@ -475,6 +480,9 @@ class _MateriasDelTrimestreState extends State<MateriasDelTrimestre> {
         _evalControllers.add(TextEditingController());
         _porcentajeControllers.add(TextEditingController());
         _notaControllers.add(TextEditingController());
+        _editMateriaControllers[id] = TextEditingController(
+          text: _nuevaMateriaController.text,
+        );
         _nuevaMateriaController.clear();
         if (widget.onMateriasUpdated != null) {
           widget.onMateriasUpdated!();
@@ -485,6 +493,42 @@ class _MateriasDelTrimestreState extends State<MateriasDelTrimestre> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Error al agregar materia: ${e.toString()}'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
+      setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _editarNombreMateria(int materiaId) async {
+    final controller = _editMateriaControllers[materiaId];
+    if (controller == null || controller.text.isEmpty) return;
+
+    setState(() => _isLoading = true);
+
+    try {
+      final count = await DatabaseHelper.instance.updateNombreMateria(
+        materiaId,
+        controller.text,
+      );
+
+      if (count > 0) {
+        final materiaIndex = _materias.indexWhere((m) => m.id == materiaId);
+        if (materiaIndex != -1) {
+          setState(() {
+            _materias[materiaIndex].nombre = controller.text;
+          });
+        }
+        if (widget.onMateriasUpdated != null) {
+          widget.onMateriasUpdated!();
+        }
+      }
+    } catch (e) {
+      debugPrint('Error al editar materia: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error al editar materia: ${e.toString()}'),
           backgroundColor: Colors.red,
         ),
       );
@@ -504,6 +548,17 @@ class _MateriasDelTrimestreState extends State<MateriasDelTrimestre> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Complete todos los campos'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    final nota_ = int.tryParse(notaText);
+    if (nota_ == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('La nota debe ser un número entero'),
           backgroundColor: Colors.red,
         ),
       );
@@ -610,6 +665,7 @@ class _MateriasDelTrimestreState extends State<MateriasDelTrimestre> {
           _evalControllers.removeAt(materiaIndex);
           _porcentajeControllers.removeAt(materiaIndex);
           _notaControllers.removeAt(materiaIndex);
+          _editMateriaControllers.remove(materia.id);
         });
         if (widget.onMateriasUpdated != null) {
           widget.onMateriasUpdated!();
@@ -649,6 +705,9 @@ class _MateriasDelTrimestreState extends State<MateriasDelTrimestre> {
       controller.dispose();
     }
     for (var controller in _notaControllers) {
+      controller.dispose();
+    }
+    for (var controller in _editMateriaControllers.values) {
       controller.dispose();
     }
     super.dispose();
@@ -788,15 +847,28 @@ class _MateriasDelTrimestreState extends State<MateriasDelTrimestre> {
                           children: [
                             Row(
                               children: [
-                                Text(
-                                  materia.nombre,
-                                  style: const TextStyle(
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.bold,
-                                    color: Color(0xFFFF8200),
+                                Expanded(
+                                  child: Text(
+                                    materia.nombre,
+                                    style: const TextStyle(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.bold,
+                                      color: Color(0xFFFF8200),
+                                    ),
                                   ),
                                 ),
-                                const Spacer(),
+                                IconButton(
+                                  icon: const Icon(
+                                    Icons.edit,
+                                    color: Color(0xFFFF8200),
+                                  ),
+                                  onPressed: () {
+                                    _showEditMateriaDialog(
+                                      materia.id,
+                                      materia.nombre,
+                                    );
+                                  },
+                                ),
                                 IconButton(
                                   icon: const Icon(
                                     Icons.delete,
@@ -968,6 +1040,45 @@ class _MateriasDelTrimestreState extends State<MateriasDelTrimestre> {
                 ),
         ),
       ],
+    );
+  }
+
+  void _showEditMateriaDialog(int materiaId, String currentName) {
+    final controller =
+        _editMateriaControllers[materiaId] ??
+        TextEditingController(text: currentName);
+    _editMateriaControllers[materiaId] = controller;
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Text('Editar nombre de materia'),
+          content: TextField(
+            controller: controller,
+            decoration: InputDecoration(
+              labelText: 'Nuevo nombre',
+              border: OutlineInputBorder(),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text('Cancelar'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                Navigator.pop(context);
+                await _editarNombreMateria(materiaId);
+              },
+              child: Text('Guardar'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Color(0xFFFF8200),
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 }

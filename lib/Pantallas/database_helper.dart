@@ -355,6 +355,16 @@ class DatabaseHelper {
     return totalPorcentaje > 0 ? sumaPonderada / totalPorcentaje : 0;
   }
 
+  Future<int> updateNombreMateria(int materiaId, String nuevoNombre) async {
+    final db = await database;
+    return await db.update(
+      'materias',
+      {'nombre': nuevoNombre},
+      where: 'id = ?',
+      whereArgs: [materiaId],
+    );
+  }
+
   Future<void> close() async {
     final db = await instance.database;
     await db.close();
