@@ -61,7 +61,7 @@ class _ContactoScreenState extends State<ContactoScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color.fromARGB(255, 236, 236, 236),
+      backgroundColor: const Color(0xFFFFFFFF),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(20.0),
         child: Form(
