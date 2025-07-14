@@ -64,7 +64,7 @@ class _NotacionesExampleState extends State<NotacionesExample> {
 
     setState(() {
       _isLoading = true;
-      _mostrarPromedio = true;
+      _mostrarPromedio = false; // Cambiado a false para ocultar el promedio
     });
 
     try {
@@ -230,31 +230,7 @@ class _NotacionesExampleState extends State<NotacionesExample> {
                   ? _buildListaTrimestres()
                   : Column(
                       children: [
-                        if (_mostrarPromedio && _promedioTrimestre > 0)
-                          Padding(
-                            padding: const EdgeInsets.only(bottom: 16.0),
-                            child: Card(
-                              color: Colors.orange[50],
-                              child: Padding(
-                                padding: const EdgeInsets.all(12.0),
-                                child: Row(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Icon(Icons.star, color: Colors.orange),
-                                    SizedBox(width: 8),
-                                    Text(
-                                      'Promedio del trimestre: ${_promedioTrimestre.toStringAsFixed(2)}',
-                                      style: TextStyle(
-                                        fontSize: 18,
-                                        fontWeight: FontWeight.bold,
-                                        color: Colors.orange[800],
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          ),
+                        // Se ha eliminado el widget que mostraba el promedio
                         Expanded(
                           child: MateriasDelTrimestre(
                             trimestreId: _trimestreSeleccionado!,
@@ -431,7 +407,7 @@ class _MateriasDelTrimestreState extends State<MateriasDelTrimestre> {
               (eval) => Evaluacion(
                 eval['nombre'],
                 eval['porcentaje'],
-                eval['nota']?.toDouble() ?? 0.0, // Asegura que nunca sea null
+                eval['nota']?.toDouble() ?? 0.0,
                 eval['id'],
               ),
             )
@@ -564,7 +540,6 @@ class _MateriasDelTrimestreState extends State<MateriasDelTrimestre> {
       return;
     }
 
-    // Nota será 0 si no se especifica
     final notaText = _notaControllers[materiaIndex].text;
     final nota = notaText.isNotEmpty ? double.tryParse(notaText) ?? 0.0 : 0.0;
 
