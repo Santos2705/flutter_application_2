@@ -29,20 +29,20 @@ class _InicioExampleState extends State<InicioExample> {
   final TextEditingController _taskController = TextEditingController();
   DateTime? _taskDate;
 
-  // Definición de las semanas académicas para 2025
+  // Definición de las semanas académicas ajustadas
   static final Map<int, DateTimeRange> _academicWeeks = {
-    1: DateTimeRange(start: DateTime(2025, 4, 20), end: DateTime(2025, 4, 26)),
-    2: DateTimeRange(start: DateTime(2025, 4, 27), end: DateTime(2025, 5, 3)),
-    3: DateTimeRange(start: DateTime(2025, 5, 4), end: DateTime(2025, 5, 10)),
-    4: DateTimeRange(start: DateTime(2025, 5, 11), end: DateTime(2025, 5, 17)),
-    5: DateTimeRange(start: DateTime(2025, 5, 18), end: DateTime(2025, 5, 24)),
-    6: DateTimeRange(start: DateTime(2025, 5, 25), end: DateTime(2025, 5, 31)),
-    7: DateTimeRange(start: DateTime(2025, 6, 1), end: DateTime(2025, 6, 7)),
-    8: DateTimeRange(start: DateTime(2025, 6, 8), end: DateTime(2025, 6, 14)),
-    9: DateTimeRange(start: DateTime(2025, 6, 15), end: DateTime(2025, 6, 21)),
-    10: DateTimeRange(start: DateTime(2025, 6, 22), end: DateTime(2025, 6, 28)),
-    11: DateTimeRange(start: DateTime(2025, 6, 29), end: DateTime(2025, 7, 5)),
-    12: DateTimeRange(start: DateTime(2025, 7, 6), end: DateTime(2025, 7, 12)),
+    1: DateTimeRange(start: DateTime(2025, 9, 7), end: DateTime(2025, 9, 14)),
+    2: DateTimeRange(start: DateTime(2025, 9, 15), end: DateTime(2025, 9, 22)),
+    3: DateTimeRange(start: DateTime(2025, 9, 23), end: DateTime(2025, 9, 30)),
+    4: DateTimeRange(start: DateTime(2025, 10, 1), end: DateTime(2025, 10, 8)),
+    5: DateTimeRange(start: DateTime(2025, 10, 9), end: DateTime(2025, 10, 16)),
+    6: DateTimeRange(start: DateTime(2025, 10, 17), end: DateTime(2025, 10, 24)),
+    7: DateTimeRange(start: DateTime(2025, 10, 25), end: DateTime(2025, 11, 1)),
+    8: DateTimeRange(start: DateTime(2025, 11, 2), end: DateTime(2025, 11, 9)),
+    9: DateTimeRange(start: DateTime(2025, 11, 10), end: DateTime(2025, 11, 17)),
+    10: DateTimeRange(start: DateTime(2025, 11, 18), end: DateTime(2025, 11, 25)),
+    11: DateTimeRange(start: DateTime(2025, 11, 26), end: DateTime(2025, 12, 3)),
+    12: DateTimeRange(start: DateTime(2025, 12, 4), end: DateTime(2025, 12, 11)),
   };
 
   int _getAcademicWeek(DateTime date) {
@@ -52,7 +52,8 @@ class _InicioExampleState extends State<InicioExample> {
       }
     }
     if (date.isBefore(_academicWeeks[1]!.start)) return 1;
-    return 12;
+    if (date.isAfter(_academicWeeks[12]!.end)) return 12;
+    return 1;
   }
 
   Set<DateTime> _getTaskDates() {
@@ -60,7 +61,6 @@ class _InicioExampleState extends State<InicioExample> {
     for (var weekTasks in _weeklyTasks.values) {
       for (var task in weekTasks) {
         if (task['fecha'] != null) {
-          // Normalizamos la fecha para ignorar la hora
           final date = DateTime.parse(task['fecha']);
           dates.add(DateTime(date.year, date.month, date.day));
         }
