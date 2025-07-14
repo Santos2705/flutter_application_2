@@ -19,7 +19,7 @@ class DatabaseHelper {
 
     return await openDatabase(
       path,
-      version: 6, // Incrementado de 5 a 6 por la nueva tabla
+      version: 7, // Incrementado a 7 por los cambios en evaluaciones
       onCreate: _createDB,
       onUpgrade: _upgradeDB,
     );
@@ -62,7 +62,7 @@ class DatabaseHelper {
         materia_id INTEGER NOT NULL,
         nombre TEXT NOT NULL,
         porcentaje REAL NOT NULL,
-        nota REAL NOT NULL,
+        nota REAL,
         FOREIGN KEY (materia_id) REFERENCES materias (id) ON DELETE CASCADE
       )
     ''');
@@ -119,17 +119,17 @@ class DatabaseHelper {
           nombre TEXT NOT NULL,
           FOREIGN KEY (trimestre_id) REFERENCES trimestres (id) ON DELETE CASCADE
         )
-        
       ''');
+
       await db.execute('''
-      CREATE TABLE mensajes_contacto (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        nombre TEXT NOT NULL,
-        email TEXT NOT NULL,
-        mensaje TEXT NOT NULL,
-        fecha TEXT NOT NULL
-      )
-    ''');
+        CREATE TABLE mensajes_contacto (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          nombre TEXT NOT NULL,
+          email TEXT NOT NULL,
+          mensaje TEXT NOT NULL,
+          fecha TEXT NOT NULL
+        )
+      ''');
 
       final userIds = await db.query('users', columns: ['id']);
       for (var user in userIds) {
@@ -169,28 +169,34 @@ class DatabaseHelper {
         )
       ''');
     }
+    if (oldVersion < 7) {
+      // Migración para permitir NULL en evaluaciones.nota
+      await db.execute('''
+        CREATE TABLE evaluaciones_new (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          materia_id INTEGER NOT NULL,
+          nombre TEXT NOT NULL,
+          porcentaje REAL NOT NULL,
+          nota REAL,
+          FOREIGN KEY (materia_id) REFERENCES materias (id) ON DELETE CASCADE
+        )
+      ''');
+
+      await db.execute('''
+        INSERT INTO evaluaciones_new (id, materia_id, nombre, porcentaje, nota)
+        SELECT id, materia_id, nombre, porcentaje, nota FROM evaluaciones
+      ''');
+
+      await db.execute('DROP TABLE evaluaciones');
+      await db.execute('ALTER TABLE evaluaciones_new RENAME TO evaluaciones');
+    }
   }
 
   Future _createTables(Database db) async {
     await _createDB(db, 1);
   }
 
-  // Método para insertar mensajes de contacto
-  Future<int> insertMensajeContacto(
-    String nombre,
-    String email,
-    String mensaje,
-  ) async {
-    final db = await database;
-    return await db.insert('mensajes_contacto', {
-      'nombre': nombre,
-      'email': email,
-      'mensaje': mensaje,
-      'fecha': DateTime.now().toIso8601String(),
-    });
-  }
-
-  // Resto de los métodos existentes...
+  // Métodos para usuarios
   Future<int> createUser(String username, String email, String password) async {
     final db = await instance.database;
     return await db.insert('users', {
@@ -210,6 +216,7 @@ class DatabaseHelper {
     return result.isNotEmpty ? result.first : null;
   }
 
+  // Métodos para trimestres
   Future<int> insertTrimestre(
     int userId,
     String nombre, {
@@ -240,6 +247,7 @@ class DatabaseHelper {
     return await db.delete('trimestres', where: 'id = ?', whereArgs: [id]);
   }
 
+  // Métodos para materias
   Future<List<Map<String, dynamic>>> getMateriasPorTrimestre(
     int trimestreId,
   ) async {
@@ -264,12 +272,23 @@ class DatabaseHelper {
     return await db.delete('materias', where: 'id = ?', whereArgs: [id]);
   }
 
+  Future<int> updateNombreMateria(int materiaId, String nuevoNombre) async {
+    final db = await database;
+    return await db.update(
+      'materias',
+      {'nombre': nuevoNombre},
+      where: 'id = ?',
+      whereArgs: [materiaId],
+    );
+  }
+
+  // Métodos para evaluaciones
   Future<int> insertEvaluacion(
     int materiaId,
     String nombre,
-    double porcentaje,
-    double nota,
-  ) async {
+    double porcentaje, [
+    double? nota,
+  ]) async {
     final db = await database;
     return await db.insert('evaluaciones', {
       'materia_id': materiaId,
@@ -277,6 +296,16 @@ class DatabaseHelper {
       'porcentaje': porcentaje,
       'nota': nota,
     });
+  }
+
+  Future<int> updateNotaEvaluacion(int evaluacionId, double nota) async {
+    final db = await database;
+    return await db.update(
+      'evaluaciones',
+      {'nota': nota},
+      where: 'id = ?',
+      whereArgs: [evaluacionId],
+    );
   }
 
   Future<List<Map<String, dynamic>>> getEvaluacionesPorMateria(
@@ -295,6 +324,7 @@ class DatabaseHelper {
     return await db.delete('evaluaciones', where: 'id = ?', whereArgs: [id]);
   }
 
+  // Métodos para tareas
   Future<int> insertTarea(
     int userId,
     int semana,
@@ -327,6 +357,22 @@ class DatabaseHelper {
     return await db.delete('tareas', where: 'id = ?', whereArgs: [id]);
   }
 
+  // Métodos para mensajes de contacto
+  Future<int> insertMensajeContacto(
+    String nombre,
+    String email,
+    String mensaje,
+  ) async {
+    final db = await database;
+    return await db.insert('mensajes_contacto', {
+      'nombre': nombre,
+      'email': email,
+      'mensaje': mensaje,
+      'fecha': DateTime.now().toIso8601String(),
+    });
+  }
+
+  // Cálculo de promedios
   Future<double> calcularPromedioTrimestre(int trimestreId) async {
     final db = await database;
     final materias = await db.query(
@@ -341,7 +387,7 @@ class DatabaseHelper {
     for (var materia in materias) {
       final evaluaciones = await db.query(
         'evaluaciones',
-        where: 'materia_id = ?',
+        where: 'materia_id = ? AND nota IS NOT NULL',
         whereArgs: [materia['id']],
       );
 
@@ -353,16 +399,6 @@ class DatabaseHelper {
     }
 
     return totalPorcentaje > 0 ? sumaPonderada / totalPorcentaje : 0;
-  }
-
-  Future<int> updateNombreMateria(int materiaId, String nuevoNombre) async {
-    final db = await database;
-    return await db.update(
-      'materias',
-      {'nombre': nuevoNombre},
-      where: 'id = ?',
-      whereArgs: [materiaId],
-    );
   }
 
   Future<void> close() async {

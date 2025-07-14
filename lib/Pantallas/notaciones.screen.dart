@@ -393,6 +393,7 @@ class _MateriasDelTrimestreState extends State<MateriasDelTrimestre> {
   final List<TextEditingController> _notaControllers = [];
   bool _isLoading = true;
   final Map<int, TextEditingController> _editMateriaControllers = {};
+  final Map<int, TextEditingController> _editEvalNotaControllers = {};
 
   @override
   void initState() {
@@ -418,6 +419,7 @@ class _MateriasDelTrimestreState extends State<MateriasDelTrimestre> {
       _porcentajeControllers.clear();
       _notaControllers.clear();
       _editMateriaControllers.clear();
+      _editEvalNotaControllers.clear();
 
       for (var materiaDB in materiasDB) {
         final evaluacionesDB = await DatabaseHelper.instance
@@ -429,7 +431,7 @@ class _MateriasDelTrimestreState extends State<MateriasDelTrimestre> {
               (eval) => Evaluacion(
                 eval['nombre'],
                 eval['porcentaje'],
-                eval['nota'],
+                eval['nota']?.toDouble() ?? 0.0, // Asegura que nunca sea null
                 eval['id'],
               ),
             )
@@ -540,25 +542,11 @@ class _MateriasDelTrimestreState extends State<MateriasDelTrimestre> {
   Future<void> _agregarEvaluacion(int materiaIndex) async {
     final nombreEvaluacion = _evalControllers[materiaIndex].text;
     final porcentajeText = _porcentajeControllers[materiaIndex].text;
-    final notaText = _notaControllers[materiaIndex].text;
 
-    if (nombreEvaluacion.isEmpty ||
-        porcentajeText.isEmpty ||
-        notaText.isEmpty) {
+    if (nombreEvaluacion.isEmpty || porcentajeText.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Complete todos los campos'),
-          backgroundColor: Colors.red,
-        ),
-      );
-      return;
-    }
-
-    final nota_ = int.tryParse(notaText);
-    if (nota_ == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('La nota debe ser un número entero'),
+          content: Text('Complete nombre y porcentaje'),
           backgroundColor: Colors.red,
         ),
       );
@@ -576,16 +564,9 @@ class _MateriasDelTrimestreState extends State<MateriasDelTrimestre> {
       return;
     }
 
-    final nota = double.tryParse(notaText) ?? 0.0;
-    if (nota < 0 || nota > 20) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('La nota debe estar entre 0 y 20'),
-          backgroundColor: Colors.red,
-        ),
-      );
-      return;
-    }
+    // Nota será 0 si no se especifica
+    final notaText = _notaControllers[materiaIndex].text;
+    final nota = notaText.isNotEmpty ? double.tryParse(notaText) ?? 0.0 : 0.0;
 
     setState(() => _isLoading = true);
 
@@ -622,6 +603,54 @@ class _MateriasDelTrimestreState extends State<MateriasDelTrimestre> {
     }
   }
 
+  Future<void> _editarNotaEvaluacion(int materiaIndex, int evalIndex) async {
+    final evaluacion = _materias[materiaIndex].evaluaciones[evalIndex];
+    final controller =
+        _editEvalNotaControllers[evaluacion.id] ??
+        TextEditingController(text: evaluacion.nota.toString());
+    _editEvalNotaControllers[evaluacion.id] = controller;
+
+    final nota = double.tryParse(controller.text);
+    if (nota == null || nota < 0 || nota > 20) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('La nota debe ser un número entre 0 y 20'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    setState(() => _isLoading = true);
+
+    try {
+      final count = await DatabaseHelper.instance.updateNotaEvaluacion(
+        evaluacion.id,
+        nota,
+      );
+
+      if (count > 0) {
+        setState(() {
+          _materias[materiaIndex].evaluaciones[evalIndex].nota = nota;
+        });
+        if (widget.onMateriasUpdated != null) {
+          widget.onMateriasUpdated!();
+        }
+        await widget.calcularPromedio();
+      }
+    } catch (e) {
+      debugPrint('Error al actualizar nota: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error al actualizar nota: ${e.toString()}'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
+      setState(() => _isLoading = false);
+    }
+  }
+
   Future<void> _eliminarEvaluacion(int materiaIndex, int evalIndex) async {
     final evaluacion = _materias[materiaIndex].evaluaciones[evalIndex];
 
@@ -638,6 +667,7 @@ class _MateriasDelTrimestreState extends State<MateriasDelTrimestre> {
         if (widget.onMateriasUpdated != null) {
           widget.onMateriasUpdated!();
         }
+        await widget.calcularPromedio();
       }
     } catch (e) {
       debugPrint('Error al eliminar evaluación: $e');
@@ -670,6 +700,7 @@ class _MateriasDelTrimestreState extends State<MateriasDelTrimestre> {
         if (widget.onMateriasUpdated != null) {
           widget.onMateriasUpdated!();
         }
+        await widget.calcularPromedio();
       }
     } catch (e) {
       debugPrint('Error al eliminar materia: $e');
@@ -708,6 +739,9 @@ class _MateriasDelTrimestreState extends State<MateriasDelTrimestre> {
       controller.dispose();
     }
     for (var controller in _editMateriaControllers.values) {
+      controller.dispose();
+    }
+    for (var controller in _editEvalNotaControllers.values) {
       controller.dispose();
     }
     super.dispose();
@@ -927,6 +961,7 @@ class _MateriasDelTrimestreState extends State<MateriasDelTrimestre> {
                                       keyboardType: TextInputType.number,
                                       decoration: InputDecoration(
                                         labelText: 'Nota (0-20)',
+                                        hintText: 'Opcional (default 0)',
                                         border: OutlineInputBorder(
                                           borderRadius: BorderRadius.circular(
                                             8,
@@ -989,20 +1024,33 @@ class _MateriasDelTrimestreState extends State<MateriasDelTrimestre> {
                                   contentPadding: EdgeInsets.zero,
                                   leading: const Icon(
                                     Icons.assignment,
-                                    color: Colors.blueAccent,
+                                    color: Color(0xFFFF6106),
                                   ),
                                   title: Text(eval.nombre),
                                   subtitle: Text(
-                                    '${eval.porcentaje}% - Nota: ${eval.nota}',
+                                    '${eval.porcentaje}% - Nota: ${eval.nota.toStringAsFixed(1)}',
                                   ),
                                   trailing: Row(
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
                                       Text(
-                                        '${eval.puntosObtenidos.toStringAsFixed(1)} pts',
+                                        '${((eval.nota * eval.porcentaje) / 100).toStringAsFixed(1)} pts',
                                         style: const TextStyle(
                                           fontWeight: FontWeight.bold,
                                         ),
+                                      ),
+                                      IconButton(
+                                        icon: const Icon(
+                                          Icons.edit,
+                                          color: Color(0xFFFF6106),
+                                        ),
+                                        onPressed: () {
+                                          _showEditNotaDialog(
+                                            materiaIndex,
+                                            evalIndex,
+                                            eval,
+                                          );
+                                        },
                                       ),
                                       IconButton(
                                         icon: const Icon(
@@ -1070,6 +1118,53 @@ class _MateriasDelTrimestreState extends State<MateriasDelTrimestre> {
               onPressed: () async {
                 Navigator.pop(context);
                 await _editarNombreMateria(materiaId);
+              },
+              child: Text('Guardar'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Color(0xFFFF8200),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _showEditNotaDialog(int materiaIndex, int evalIndex, Evaluacion eval) {
+    final controller =
+        _editEvalNotaControllers[eval.id] ??
+        TextEditingController(text: eval.nota.toString());
+    _editEvalNotaControllers[eval.id] = controller;
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Text('Editar nota de evaluación'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text('${eval.nombre} (${eval.porcentaje}%)'),
+              SizedBox(height: 16),
+              TextField(
+                controller: controller,
+                keyboardType: TextInputType.number,
+                decoration: InputDecoration(
+                  labelText: 'Nota (0-20)',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text('Cancelar'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                Navigator.pop(context);
+                await _editarNotaEvaluacion(materiaIndex, evalIndex);
               },
               child: Text('Guardar'),
               style: ElevatedButton.styleFrom(
